@@ -1,0 +1,215 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "Default",
+            "hidden": true,
+            "displayName": "Default Config",
+            "description": "Default build using Ninja generator",
+            "generator": "Ninja",
+            "toolchainFile": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+            "cacheVariables": {
+                "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake"
+            }
+        },
+        {
+            "name": "Windows-Only",
+            "inherits": "Default",
+            "hidden": true,
+            "displayName": "Windows-only configuration",
+            "description": "This build is only available on Windows",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "Windows-LLVM",
+            "inherits": "Windows-Only",
+            "hidden": true,
+            "displayName": "Windows-LLVM configuration",
+            "description": "This build is only available on Windows",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "cacheVariables": {
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": {
+                    "type": "STRING",
+                    "value": "${sourceDir}/cmake/x64-windows-llvm.cmake"
+                },
+                "VCPKG_TARGET_TRIPLET": {
+                    "type": "STRING",
+                    "value": "x64-windows-llvm-static"
+                }
+            }
+        },
+        {
+            "name": "Windows-MSVC",
+            "inherits": "Windows-Only",
+            "hidden": true,
+            "displayName": "Windows-only configuration",
+            "description": "This build is only available on Windows",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": {
+                    "type": "STRING",
+                    "value": "x64-windows"
+                }
+            }
+        },
+        {
+            "name": "Linux-Only",
+            "hidden": true,
+            "inherits": "Default",
+            "displayName": "Linux-only configuration",
+            "description": "This build is only available on Linux",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "Linux-LLVM",
+            "hidden": true,
+            "inherits": "Linux-Only",
+            "displayName": "Linux-LLVM-Base",
+            "description": "Linux Configuration Using LLVM",
+            "cacheVariables": {
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/x64-linux-llvm.cmake",
+                "VCPKG_TARGET_TRIPLET": "x64-linux-llvm",
+                "CLANG_VERSION": "12"
+            }
+        },
+        {
+            "name": "Linux-LLVM-Debug",
+            "displayName": "Linux LLVM Debug Configuration",
+            "inherits": "Linux-LLVM",
+            "binaryDir": "${sourceDir}/build/LLVM/Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_COVERAGE": "ON"
+            }
+        },
+        {
+            "name": "Linux-LLVM-Release",
+            "displayName": "Linux LLVM Release Configuration",
+            "inherits": "Linux-LLVM",
+            "binaryDir": "${sourceDir}/build/LLVM/Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "BUILD_COVERAGE": "OFF"
+            }
+        },
+        {
+            "name": "Windows-LLVM-Debug",
+            "displayName": "Windows LLVM Debug Configuration",
+            "inherits": "Windows-LLVM",
+            "binaryDir": "${sourceDir}/build/LLVM/Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_COVERAGE": "ON"
+            }
+        },
+        {
+            "name": "Windows-LLVM-Release",
+            "displayName": "Windows LLVM Release Configuration",
+            "inherits": "Windows-LLVM",
+            "binaryDir": "${sourceDir}/build/LLVM/Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "BUILD_COVERAGE": "OFF"
+            }
+        },
+        {
+            "name": "Windows-MSVC-Debug",
+            "displayName": "Windows MSVC Debug Configuration",
+            "inherits": "Windows-MSVC",
+            "binaryDir": "${sourceDir}/build/MSVC/Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_COVERAGE": "OFF"
+            }
+        },
+        {
+            "name": "Windows-MSVC-Release",
+            "displayName": "Windows MSVC Release Configuration",
+            "inherits": "Windows-MSVC",
+            "binaryDir": "${sourceDir}/build/MSVC/Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "BUILD_COVERAGE": "OFF"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "Default",
+            "hidden": true,
+            "targets": "all",
+            "jobs": 4
+        },
+        {
+            "name": "Windows-Default",
+            "inherits": "Default",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "Linux-Default",
+            "inherits": "Default",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "Linux-LLVM-Release",
+            "configurePreset": "Linux-LLVM-Release",
+            "inherits": "Linux-Default"
+        },
+        {
+            "name": "Linux-LLVM-Debug",
+            "configurePreset": "Linux-LLVM-Debug",
+            "inherits": "Linux-Default"
+        },
+        {
+            "name": "Windows-LLVM-Debug",
+            "configurePreset": "Windows-LLVM-Debug",
+            "inherits": "Windows-Default"
+        },
+        {
+            "name": "Windows-LLVM-Release",
+            "configurePreset": "Windows-LLVM-Release",
+            "inherits": "Windows-Default"
+        },
+        {
+            "name": "Windows-MSVC-Debug",
+            "configurePreset": "Windows-MSVC-Debug",
+            "inherits": "Windows-Default"
+        },
+        {
+            "name": "Windows-MSVC-Release",
+            "configurePreset": "Windows-MSVC-Release",
+            "inherits": "Windows-Default"
+        }
+    ]
+}
