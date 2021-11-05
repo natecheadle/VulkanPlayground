@@ -82,6 +82,18 @@
             }
         },
         {
+            "name": "OSX-Only",
+            "hidden": true,
+            "inherits": "Default",
+            "displayName": "OSX-only configuration",
+            "description": "This build is only available on OSX",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            }
+        },
+        {
             "name": "Linux-LLVM",
             "hidden": true,
             "inherits": "Linux-Only",
@@ -90,6 +102,18 @@
             "cacheVariables": {
                 "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/x64-linux-llvm.cmake",
                 "VCPKG_TARGET_TRIPLET": "x64-linux-llvm",
+                "CLANG_VERSION": "12"
+            }
+        },
+        {
+            "name": "OSX-LLVM",
+            "hidden": true,
+            "inherits": "OSX-Only",
+            "displayName": "OSX-LLVM-Base",
+            "description": "OSX Configuration Using LLVM",
+            "cacheVariables": {
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/x64-osx-llvm.cmake",
+                "VCPKG_TARGET_TRIPLET": "x64-osx-llvm",
                 "CLANG_VERSION": "12"
             }
         },
@@ -107,6 +131,26 @@
             "name": "Linux-LLVM-Release",
             "displayName": "Linux LLVM Release Configuration",
             "inherits": "Linux-LLVM",
+            "binaryDir": "${sourceDir}/build/LLVM/Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "BUILD_COVERAGE": "OFF"
+            }
+        },
+        {
+            "name": "OSX-LLVM-Debug",
+            "displayName": "Mac LLVM Debug Configuration",
+            "inherits": "OSX-LLVM",
+            "binaryDir": "${sourceDir}/build/LLVM/Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_COVERAGE": "ON"
+            }
+        },
+        {
+            "name": "OSX-LLVM-Release",
+            "displayName": "Mac LLVM Release Configuration",
+            "inherits": "OSX-LLVM",
             "binaryDir": "${sourceDir}/build/LLVM/Release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
@@ -182,6 +226,16 @@
             }
         },
         {
+            "name": "OSX-Default",
+            "inherits": "Default",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            }
+        },
+        {
             "name": "Linux-LLVM-Release",
             "configurePreset": "Linux-LLVM-Release",
             "inherits": "Linux-Default"
@@ -190,6 +244,16 @@
             "name": "Linux-LLVM-Debug",
             "configurePreset": "Linux-LLVM-Debug",
             "inherits": "Linux-Default"
+        },
+        {
+            "name": "OSX-LLVM-Release",
+            "configurePreset": "OSX-LLVM-Release",
+            "inherits": "OSX-Default"
+        },
+        {
+            "name": "OSX-LLVM-Debug",
+            "configurePreset": "OSX-LLVM-Debug",
+            "inherits": "OSX-Default"
         },
         {
             "name": "Windows-LLVM-Debug",
