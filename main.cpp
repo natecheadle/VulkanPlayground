@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <optional>
 
 constexpr uint32_t WIDTH  = 800;
 constexpr uint32_t HEIGHT = 600;
@@ -46,10 +47,18 @@ void DestroyDebugUtilsMessengerEXT(
     }
 }
 
+struct QueueFamilyIndices
+{
+    std::optional<uint32_t> graphicsFamily;
+
+    bool isComplete() { return graphicsFamily.has_value(); }
+};
+
 class HelloTriangleApplication {
     GLFWwindow*              window;
     VkInstance               instance;
     VkDebugUtilsMessengerEXT debugMessenger;
+    VkPhysicalDevice         physicalDevice;
 
   public:
     void run()
@@ -75,6 +84,73 @@ class HelloTriangleApplication {
     {
         createInstance();
         setupDebugMessenger();
+        pickPhysicalDevice();
+    }
+
+    void pickPhysicalDevice()
+    {
+        physicalDevice       = VK_NULL_HANDLE;
+        uint32_t deviceCount = 0;
+
+        vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+
+        if (deviceCount == 0)
+        {
+            throw std::runtime_error("failed to find GPUs with Vulkan support!");
+        }
+
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+        for (const auto& device : devices)
+        {
+            if (isDeviceSuitable(device))
+            {
+                physicalDevice = device;
+                break;
+            }
+        }
+
+        if (physicalDevice == VK_NULL_HANDLE)
+        {
+            throw std::runtime_error("failed to find a suitable GPU!");
+        }
+    }
+
+    bool isDeviceSuitable(VkPhysicalDevice device)
+    {
+        QueueFamilyIndices indices = findQueueFamilies(device);
+
+        return indices.isComplete();
+    }
+
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device)
+    {
+        QueueFamilyIndices indices;
+        
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+        int i = 0;
+        for (const auto& queueFamily : queueFamilies)
+        {
+            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            {
+                indices.graphicsFamily = i;
+            }
+
+            if (indices.isComplete())
+            {
+                break;
+            }
+
+            i++;
+        }
+
+        return indices;
     }
 
     void createInstance()
@@ -152,6 +228,8 @@ class HelloTriangleApplication {
         glfwDestroyWindow(window);
 
         glfwTerminate();
+
+        physicalDevice = VK_NULL_HANDLE;
     }
 
     bool checkValidationLayerSupport()
@@ -270,6 +348,7 @@ class HelloTriangleApplication {
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: std::cerr << "[INFO] \t"; break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: std::cerr << "[WARNING] \t"; break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: std::cerr << "[ERROR] \t"; break;
+        default: std::cerr << "[OTHER] \t";
         }
 
         switch (messageType)
@@ -277,6 +356,7 @@ class HelloTriangleApplication {
         case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT: std::cerr << "[GENERAL] \t"; break;
         case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT: std::cerr << "[VALIDATION] \t"; break;
         case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT: std::cerr << "[PERFORMANCE] \t"; break;
+        default: std::cerr << "[OTHER] \t";
         }
 
         std::cerr << pCallbackData->pMessage << std::endl;
