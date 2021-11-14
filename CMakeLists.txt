@@ -9,3 +9,4 @@ find_package(glm CONFIG REQUIRED)
 
 add_executable(${PROJECT_NAME} "main.cpp")
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw glm::glm Vulkan::Vulkan)
+target_compile_definitions(${PROJECT_NAME} PRIVATE REPO_HOME="${CMAKE_CURRENT_SOURCE_DIR}/")
