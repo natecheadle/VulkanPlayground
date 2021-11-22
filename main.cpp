@@ -4,6 +4,7 @@
 #include <algorithm> // Necessary for std::min/std::max
 #include <cstdint>   // Necessary for UINT32_MAX
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <optional>
