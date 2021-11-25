@@ -5,6 +5,8 @@
   "dependencies": [
     "glfw3",
     "glm",
-	"vulkan"
+    "vulkan",
+    "stb",
+    "tinyobjloader"
   ]
 }
