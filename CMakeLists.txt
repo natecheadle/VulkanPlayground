@@ -9,7 +9,11 @@ find_package(Vulkan REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 
-add_executable(${PROJECT_NAME} "main.cpp")
+add_executable(${PROJECT_NAME} 
+    "main.cpp" 
+    "application/HelloTriangle.cpp"
+    "application/GLFWWindow.cpp"
+    "application/VulkanDebugLog.cpp")
 compile_shader(${PROJECT_NAME}
     ENV vulkan
     FORMAT bin
