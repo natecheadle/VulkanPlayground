@@ -22,7 +22,7 @@ GLFWWindow::~GLFWWindow()
     glfwTerminate();
 }
 
-std::vector<const char*>& GLFWWindow::AppendAppExtensions(std::vector<const char*>& extensions) const
+std::vector<const char*>& GLFWWindow::AppendExtensions(std::vector<const char*>& extensions) const
 {
     for (const auto& extension : m_RequiredExtensions)
     {

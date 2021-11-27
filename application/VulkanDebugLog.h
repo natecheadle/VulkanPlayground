@@ -13,29 +13,29 @@ class VulkanDebugLog {
         vk::DebugUtilsMessageTypeFlagsEXT     messageTypeFlags);
     ~VulkanDebugLog();
 
-    static std::vector<const char*> GetAppExtensions()
+    static std::vector<const char*> GetExtensions()
     {
         std::vector<const char*> extensions;
-        extensions.push_back("VK_LAYER_KHRONOS_validation");
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         return extensions;
     }
 
-    static std::vector<const char*>& AppendAppExtensions(std::vector<const char*>& extensions)
+    static std::vector<const char*>& AppendExtensions(std::vector<const char*>& extensions)
     {
-        extensions.push_back("VK_LAYER_KHRONOS_validation");
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         return extensions;
     }
 
-    static std::vector<const char*> GetEnabledLayers()
+    static std::vector<const char*> GetLayers()
     {
         std::vector<const char*> layers;
-        layers.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        layers.push_back("VK_LAYER_KHRONOS_validation");
         return layers;
     }
 
-    static std::vector<const char*>& AppendEnabledLayers(std::vector<const char*>& layers)
+    static std::vector<const char*>& AppendLayers(std::vector<const char*>& layers)
     {
-        layers.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        layers.push_back("VK_LAYER_KHRONOS_validation");
         return layers;
     }
 

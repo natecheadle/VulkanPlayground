@@ -33,17 +33,17 @@ vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& contex
         VK_MAKE_VERSION(1, 0, 0),
         VK_API_VERSION_1_0);
 
-    std::vector<const char*> extensions = window.GetAppExtensions();
+    std::vector<const char*> extensions = window.GetExtensions();
 
     vk::InstanceCreateInfo instanceCreateInfo;
 
     // initialize the vk::InstanceCreateInfo
     if constexpr (ENABLE_VALIDATION)
     {
-        std::vector<const char*> validationLayers = VulkanDebugLog::GetEnabledLayers();
-        VulkanDebugLog::AppendAppExtensions(extensions);
+        std::vector<const char*> validationLayers = VulkanDebugLog::GetLayers();
+        VulkanDebugLog::AppendExtensions(extensions);
 
-        if (!checkLayers(VulkanDebugLog::GetAppExtensions(), instanceLayerProperties))
+        if (!checkLayers(validationLayers, instanceLayerProperties))
         {
             throw std::runtime_error(
                 "Set the environment variable VK_LAYER_PATH to point to the location of your layers");

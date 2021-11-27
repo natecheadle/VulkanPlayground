@@ -24,8 +24,8 @@ class GLFWWindow {
     GLFWWindow(int width, int height);
     ~GLFWWindow();
 
-    const std::vector<const char*>& GetAppExtensions() const { return m_RequiredExtensions; }
-    std::vector<const char*>&       AppendAppExtensions(std::vector<const char*>& extensions) const;
+    const std::vector<const char*>& GetExtensions() const { return m_RequiredExtensions; }
+    std::vector<const char*>&       AppendExtensions(std::vector<const char*>& extensions) const;
 
   private:
     static GLFWwindow*              createWindow(int width, int height);
