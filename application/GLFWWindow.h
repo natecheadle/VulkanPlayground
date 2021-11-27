@@ -1,6 +1,9 @@
 #pragma once
 
 #define GLFW_INCLUDE_VULKAN
+#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_raii.hpp>
+
 #include <GLFW/glfw3.h>
 
 #include <functional>
@@ -28,6 +31,8 @@ class GLFWWindow {
 
     const std::vector<const char*>& GetExtensions() const { return m_RequiredExtensions; }
     std::vector<const char*>&       AppendExtensions(std::vector<const char*>& extensions) const;
+
+    vk::raii::SurfaceKHR CreateSurface(const vk::raii::Instance& instance);
 
     virtual bool ShouldClose() { return glfwWindowShouldClose(m_pWindow); }
     void         SetMainLoop(const std::function<void()>& f_mainLoop) { f_RunWindow = f_mainLoop; }

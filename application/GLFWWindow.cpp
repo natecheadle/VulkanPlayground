@@ -34,6 +34,17 @@ std::vector<const char*>& GLFWWindow::AppendExtensions(std::vector<const char*>&
     return extensions;
 }
 
+vk::raii::SurfaceKHR GLFWWindow::CreateSurface(const vk::raii::Instance& instance)
+{
+    VkSurfaceKHR surface;
+    if (glfwCreateWindowSurface(static_cast<VkInstance>(*instance), m_pWindow, nullptr, &surface) !=
+        VkResult::VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create windows surface.");
+    }
+    return vk::raii::SurfaceKHR(instance, surface);
+}
+
 GLFWwindow* GLFWWindow::createWindow(int width, int height)
 {
     glfwInit();

@@ -13,11 +13,13 @@ class HelloTriangle {
     {
         QueueFamilyIndices()
             : graphicsFamily(0)
+            , presentFamily(0)
         {
         }
         std::optional<uint32_t> graphicsFamily;
+        std::optional<uint32_t> presentFamily;
 
-        bool isComplete() { return graphicsFamily.has_value(); }
+        bool isComplete() { return graphicsFamily.has_value() && presentFamily.has_value(); }
     };
 
 #ifdef NDEBUG
@@ -31,8 +33,9 @@ class HelloTriangle {
 
     GLFWWindow m_Window;
 
-    vk::raii::Context  m_Context;
-    vk::raii::Instance m_Instance;
+    vk::raii::Context    m_Context;
+    vk::raii::Instance   m_Instance;
+    vk::raii::SurfaceKHR m_Surface;
 #ifndef NDEBUG
     VulkanDebugLog m_Logger;
 #endif
@@ -56,8 +59,9 @@ class HelloTriangle {
     }
 
   private:
-    static vk::raii::Instance       createInstance(const vk::raii::Context& context, const GLFWWindow& window);
-    static vk::raii::PhysicalDevice getPhysicalDevice(const vk::raii::Instance& instance);
-    static QueueFamilyIndices       getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice);
-    static vk::raii::Device         createDevice(const vk::raii::PhysicalDevice& physicalDevice);
+    QueueFamilyIndices       getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice);
+    vk::raii::Device         createDevice(const vk::raii::PhysicalDevice& physicalDevice);
+    vk::raii::PhysicalDevice getPhysicalDevice(const vk::raii::Instance& instance);
+
+    static vk::raii::Instance createInstance(const vk::raii::Context& context, const GLFWWindow& window);
 };

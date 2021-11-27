@@ -1,11 +1,14 @@
 #include "HelloTriangle.h"
 
+#include <iostream>
+
 const std::string HelloTriangle::AppName    = "HelloTriangle";
 const std::string HelloTriangle::EngineName = "No Engine";
 
 HelloTriangle::HelloTriangle()
     : m_Window(800, 600)
     , m_Instance(createInstance(m_Context, m_Window))
+    , m_Surface(m_Window.CreateSurface(m_Instance))
 #ifndef NDEBUG
     , m_Logger(
           m_Instance,
@@ -87,9 +90,12 @@ HelloTriangle::QueueFamilyIndices HelloTriangle::getQueueFamilyIndeces(const vk:
     int                i = 0;
     for (const auto& queueFamily : physicalDevice.getQueueFamilyProperties())
     {
-        if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
+        // We are going to ignore devices that don't support both present & graphics.
+        if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics &&
+            physicalDevice.getSurfaceSupportKHR(i, static_cast<vk::SurfaceKHR>(*m_Surface)))
         {
             indexes.graphicsFamily = i;
+            indexes.presentFamily  = i;
         }
 
         if (indexes.isComplete())
@@ -109,15 +115,18 @@ vk::raii::Device HelloTriangle::createDevice(const vk::raii::PhysicalDevice& phy
     float                     queuePriority = 1.0f;
     vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, indexes.graphicsFamily.value(), 1, &queuePriority);
 
+    auto deviceExtensions = physicalDevice.enumerateDeviceExtensionProperties();
+
     std::vector<const char*> validationLayers;
+    std::vector<const char*> extensions;
     if constexpr (ENABLE_VALIDATION)
     {
-        validationLayers = VulkanDebugLog::GetLayers();
+        // validationLayers = VulkanDebugLog::GetLayers();
     }
 
     vk::PhysicalDeviceFeatures physicalFeatures;
 
-    vk::DeviceCreateInfo deviceCreateInfo({}, deviceQueueCreateInfo, validationLayers, {}, &physicalFeatures);
+    vk::DeviceCreateInfo deviceCreateInfo({}, deviceQueueCreateInfo, validationLayers, extensions, &physicalFeatures);
 
     return vk::raii::Device(physicalDevice, deviceCreateInfo);
 }
