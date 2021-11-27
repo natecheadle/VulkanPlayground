@@ -13,6 +13,7 @@ HelloTriangle::HelloTriangle()
           vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
               vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation)
 #endif
+    , m_PhysicalDevice(createPhysicalDevice(m_Instance))
 {
 }
 
@@ -62,4 +63,24 @@ vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& contex
     instanceCreateInfo = vk::InstanceCreateInfo({}, &applicationInfo, validationLayers, extensions);
 
     return vk::raii::Instance(context, instanceCreateInfo);
+}
+
+vk::raii::PhysicalDevice HelloTriangle::createPhysicalDevice(const vk::raii::Instance& instance)
+{
+    vk::raii::PhysicalDevices physicalDevices(instance);
+    for (auto& device : physicalDevices)
+    {
+        bool isDeviceSuitable{false};
+        auto queueFamilies = device.getQueueFamilyProperties();
+
+        for (auto queueFamily : queueFamilies)
+        {
+            if ((queueFamily.queueFlags & vk::QueueFlagBits::eGraphics) == vk::QueueFlagBits::eGraphics)
+            {
+                return std::move(device);
+            }
+        }
+    }
+
+    throw std::runtime_error("Could not find valid physical device.");
 }

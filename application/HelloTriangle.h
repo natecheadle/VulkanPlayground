@@ -22,10 +22,10 @@ class HelloTriangle {
 
     vk::raii::Context  m_Context;
     vk::raii::Instance m_Instance;
-
 #ifndef NDEBUG
     VulkanDebugLog m_Logger;
 #endif
+    vk::raii::PhysicalDevice m_PhysicalDevice;
 
   public:
     HelloTriangle();
@@ -44,5 +44,6 @@ class HelloTriangle {
     }
 
   private:
-    static vk::raii::Instance createInstance(const vk::raii::Context& context, const GLFWWindow& window);
+    static vk::raii::Instance       createInstance(const vk::raii::Context& context, const GLFWWindow& window);
+    static vk::raii::PhysicalDevice createPhysicalDevice(const vk::raii::Instance& instance);
 };
