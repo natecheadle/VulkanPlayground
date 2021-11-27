@@ -40,12 +40,6 @@ class VulkanDebugLog {
     }
 
   private:
-    static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessageFunc(
-        VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT             messageTypes,
-        VkDebugUtilsMessengerCallbackDataEXT const* pCallbackData,
-        void* /*pUserData*/);
-
     static vk::raii::DebugUtilsMessengerEXT CreateDebugMessenger(
         const vk::raii::Instance&                   instance,
         const vk::DebugUtilsMessengerCreateInfoEXT& createInfo);

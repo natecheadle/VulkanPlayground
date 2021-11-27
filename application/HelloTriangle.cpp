@@ -14,7 +14,6 @@ HelloTriangle::HelloTriangle()
               vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation)
 #endif
     , m_PhysicalDevice(std::move(vk::raii::PhysicalDevices(m_Instance).front()))
-    , m_Device()
 {
 }
 
@@ -64,19 +63,4 @@ vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& contex
     instanceCreateInfo = vk::InstanceCreateInfo({}, &applicationInfo, validationLayers, extensions);
 
     return vk::raii::Instance(context, instanceCreateInfo);
-}
-
-vk::raii::Device HelloTriangle::createDevice(const vk::raii::PhysicalDevice& physicalDevice)
-{
-    auto queueFamilies = device.getQueueFamilyProperties();
-
-    float                     queuePriority = 0.0f;
-    vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, graphicsQueueFamilyIndex, 1, &queuePriority);
-    vk::DeviceCreateInfo      deviceCreateInfo({}, deviceQueueCreateInfo);
-
-    return vk::raii::Device(physicalDevice, deviceCreateInfo);
-}
-uint32_t HelloTriangle::findQueueFamilyIndex(
-    const std::vector<QueueFamilyProperties, QueueFamilyPropertiesAllocator>& queueFamiles)
-{
 }

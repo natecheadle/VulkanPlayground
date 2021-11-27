@@ -23,18 +23,7 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(
     return pfnVkDestroyDebugUtilsMessengerEXT(instance, messenger, pAllocator);
 }
 
-VulkanDebugLog::VulkanDebugLog(
-    const vk::raii::Instance&             instance,
-    vk::DebugUtilsMessageSeverityFlagsEXT severityFlags,
-    vk::DebugUtilsMessageTypeFlagsEXT     messageTypeFlags)
-    : m_CreateInfo({}, severityFlags, messageTypeFlags, &DebugMessageFunc)
-    , m_DebugMessenger(CreateDebugMessenger(instance, m_CreateInfo))
-{
-}
-
-VulkanDebugLog::~VulkanDebugLog() {}
-
-VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugLog::DebugMessageFunc(
+VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessageFunc(
     VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT             messageTypes,
     VkDebugUtilsMessengerCallbackDataEXT const* pCallbackData,
@@ -83,6 +72,18 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugLog::DebugMessageFunc(
 
     return false;
 }
+
+VulkanDebugLog::VulkanDebugLog(
+    const vk::raii::Instance&             instance,
+    vk::DebugUtilsMessageSeverityFlagsEXT severityFlags,
+    vk::DebugUtilsMessageTypeFlagsEXT     messageTypeFlags)
+    : m_CreateInfo({}, severityFlags, messageTypeFlags, &DebugMessageFunc)
+    , m_DebugMessenger(CreateDebugMessenger(instance, m_CreateInfo))
+{
+}
+
+VulkanDebugLog::~VulkanDebugLog() {}
+
 vk::raii::DebugUtilsMessengerEXT VulkanDebugLog::CreateDebugMessenger(
     const vk::raii::Instance&                   instance,
     const vk::DebugUtilsMessengerCreateInfoEXT& createInfo)
