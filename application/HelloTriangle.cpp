@@ -13,7 +13,8 @@ HelloTriangle::HelloTriangle()
           vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
               vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation)
 #endif
-    , m_PhysicalDevice(std::move(vk::raii::PhysicalDevices(m_Instance).front()))
+    , m_PhysicalDevice(getPhysicalDevice(m_Instance))
+    , m_Device(createDevice(m_PhysicalDevice))
 {
 }
 
@@ -63,4 +64,60 @@ vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& contex
     instanceCreateInfo = vk::InstanceCreateInfo({}, &applicationInfo, validationLayers, extensions);
 
     return vk::raii::Instance(context, instanceCreateInfo);
+}
+
+vk::raii::PhysicalDevice HelloTriangle::getPhysicalDevice(const vk::raii::Instance& instance)
+{
+    auto physicalDevices = vk::raii::PhysicalDevices(instance);
+    for (auto& physicalDevice : physicalDevices)
+    {
+        QueueFamilyIndices indexes = getQueueFamilyIndeces(physicalDevice);
+        if (indexes.isComplete())
+        {
+            return std::move(physicalDevice);
+        }
+    }
+
+    throw std::runtime_error("Failed to find a valid phsycial device.");
+}
+
+HelloTriangle::QueueFamilyIndices HelloTriangle::getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice)
+{
+    QueueFamilyIndices indexes;
+    int                i = 0;
+    for (const auto& queueFamily : physicalDevice.getQueueFamilyProperties())
+    {
+        if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
+        {
+            indexes.graphicsFamily = i;
+        }
+
+        if (indexes.isComplete())
+        {
+            return indexes;
+        }
+        ++i;
+    }
+
+    return indexes;
+}
+
+vk::raii::Device HelloTriangle::createDevice(const vk::raii::PhysicalDevice& physicalDevice)
+{
+    QueueFamilyIndices indexes = getQueueFamilyIndeces(physicalDevice);
+
+    float                     queuePriority = 1.0f;
+    vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, indexes.graphicsFamily.value(), 1, &queuePriority);
+
+    std::vector<const char*> validationLayers;
+    if constexpr (ENABLE_VALIDATION)
+    {
+        validationLayers = VulkanDebugLog::GetLayers();
+    }
+
+    vk::PhysicalDeviceFeatures physicalFeatures;
+
+    vk::DeviceCreateInfo deviceCreateInfo({}, deviceQueueCreateInfo, validationLayers, {}, &physicalFeatures);
+
+    return vk::raii::Device(physicalDevice, deviceCreateInfo);
 }

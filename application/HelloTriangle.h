@@ -5,9 +5,20 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
+#include <optional>
 #include <string>
 
 class HelloTriangle {
+    struct QueueFamilyIndices
+    {
+        QueueFamilyIndices()
+            : graphicsFamily(0)
+        {
+        }
+        std::optional<uint32_t> graphicsFamily;
+
+        bool isComplete() { return graphicsFamily.has_value(); }
+    };
 
 #ifdef NDEBUG
     static constexpr bool ENABLE_VALIDATION = false;
@@ -26,6 +37,7 @@ class HelloTriangle {
     VulkanDebugLog m_Logger;
 #endif
     vk::raii::PhysicalDevice m_PhysicalDevice;
+    vk::raii::Device         m_Device;
 
   public:
     HelloTriangle();
@@ -44,5 +56,8 @@ class HelloTriangle {
     }
 
   private:
-    static vk::raii::Instance createInstance(const vk::raii::Context& context, const GLFWWindow& window);
+    static vk::raii::Instance       createInstance(const vk::raii::Context& context, const GLFWWindow& window);
+    static vk::raii::PhysicalDevice getPhysicalDevice(const vk::raii::Instance& instance);
+    static QueueFamilyIndices       getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice);
+    static vk::raii::Device         createDevice(const vk::raii::PhysicalDevice& physicalDevice);
 };
