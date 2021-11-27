@@ -40,16 +40,14 @@ vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& contex
     // initialize the vk::InstanceCreateInfo
     if constexpr (ENABLE_VALIDATION)
     {
-        std::vector<const char*> validationLayers;
+        std::vector<const char*> validationLayers = VulkanDebugLog::GetEnabledLayers();
         VulkanDebugLog::AppendAppExtensions(extensions);
 
-        if (!checkLayers(extensions, instanceLayerProperties))
+        if (!checkLayers(VulkanDebugLog::GetAppExtensions(), instanceLayerProperties))
         {
             throw std::runtime_error(
                 "Set the environment variable VK_LAYER_PATH to point to the location of your layers");
         }
-
-        VulkanDebugLog::AppendEnabledLayers(validationLayers);
 
         instanceCreateInfo = vk::InstanceCreateInfo(
             {},
@@ -61,12 +59,6 @@ vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& contex
     }
     else
     {
-        if (!checkLayers(extensions, instanceLayerProperties))
-        {
-            throw std::runtime_error(
-                "Set the environment variable VK_LAYER_PATH to point to the location of your layers");
-        }
-
         vk::InstanceCreateInfo instanceCreateInfo = vk::InstanceCreateInfo(
             {},
             &applicationInfo,
