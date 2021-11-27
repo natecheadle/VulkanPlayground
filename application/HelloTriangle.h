@@ -26,6 +26,7 @@ class HelloTriangle {
     VulkanDebugLog m_Logger;
 #endif
     vk::raii::PhysicalDevice m_PhysicalDevice;
+    vk::raii::Device         m_Device;
 
   public:
     HelloTriangle();
@@ -44,6 +45,8 @@ class HelloTriangle {
     }
 
   private:
-    static vk::raii::Instance       createInstance(const vk::raii::Context& context, const GLFWWindow& window);
-    static vk::raii::PhysicalDevice createPhysicalDevice(const vk::raii::Instance& instance);
+    static vk::raii::Instance createInstance(const vk::raii::Context& context, const GLFWWindow& window);
+    static vk::raii::Device   createDevice(const vk::raii::PhysicalDevice& physicalDevice);
+    static uint32_t           findQueueFamilyIndex(
+                  const std::vector<QueueFamilyProperties, QueueFamilyPropertiesAllocator>& queueFamiles);
 };

@@ -13,7 +13,8 @@ HelloTriangle::HelloTriangle()
           vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
               vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation)
 #endif
-    , m_PhysicalDevice(createPhysicalDevice(m_Instance))
+    , m_PhysicalDevice(std::move(vk::raii::PhysicalDevices(m_Instance).front()))
+    , m_Device()
 {
 }
 
@@ -65,22 +66,17 @@ vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& contex
     return vk::raii::Instance(context, instanceCreateInfo);
 }
 
-vk::raii::PhysicalDevice HelloTriangle::createPhysicalDevice(const vk::raii::Instance& instance)
+vk::raii::Device HelloTriangle::createDevice(const vk::raii::PhysicalDevice& physicalDevice)
 {
-    vk::raii::PhysicalDevices physicalDevices(instance);
-    for (auto& device : physicalDevices)
-    {
-        bool isDeviceSuitable{false};
-        auto queueFamilies = device.getQueueFamilyProperties();
+    auto queueFamilies = device.getQueueFamilyProperties();
 
-        for (auto queueFamily : queueFamilies)
-        {
-            if ((queueFamily.queueFlags & vk::QueueFlagBits::eGraphics) == vk::QueueFlagBits::eGraphics)
-            {
-                return std::move(device);
-            }
-        }
-    }
+    float                     queuePriority = 0.0f;
+    vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, graphicsQueueFamilyIndex, 1, &queuePriority);
+    vk::DeviceCreateInfo      deviceCreateInfo({}, deviceQueueCreateInfo);
 
-    throw std::runtime_error("Could not find valid physical device.");
+    return vk::raii::Device(physicalDevice, deviceCreateInfo);
+}
+uint32_t HelloTriangle::findQueueFamilyIndex(
+    const std::vector<QueueFamilyProperties, QueueFamilyPropertiesAllocator>& queueFamiles)
+{
 }
