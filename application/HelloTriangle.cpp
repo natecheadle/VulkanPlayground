@@ -18,7 +18,14 @@ HelloTriangle::HelloTriangle()
 
 HelloTriangle::~HelloTriangle() {}
 
-void HelloTriangle::Run() {}
+void HelloTriangle::Run()
+{
+
+    while (!m_Window.ShouldClose())
+    {
+        m_Window.Run();
+    }
+}
 
 vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& context, const GLFWWindow& window)
 {
@@ -37,10 +44,12 @@ vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& contex
 
     vk::InstanceCreateInfo instanceCreateInfo;
 
+    std::vector<const char*> validationLayers;
+
     // initialize the vk::InstanceCreateInfo
     if constexpr (ENABLE_VALIDATION)
     {
-        std::vector<const char*> validationLayers = VulkanDebugLog::GetLayers();
+        validationLayers = VulkanDebugLog::GetLayers();
         VulkanDebugLog::AppendExtensions(extensions);
 
         if (!checkLayers(validationLayers, instanceLayerProperties))
@@ -48,25 +57,9 @@ vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& contex
             throw std::runtime_error(
                 "Set the environment variable VK_LAYER_PATH to point to the location of your layers");
         }
+    }
 
-        instanceCreateInfo = vk::InstanceCreateInfo(
-            {},
-            &applicationInfo,
-            static_cast<uint32_t>(extensions.size()),
-            extensions.data(),
-            static_cast<uint32_t>(validationLayers.size()),
-            validationLayers.data());
-    }
-    else
-    {
-        vk::InstanceCreateInfo instanceCreateInfo = vk::InstanceCreateInfo(
-            {},
-            &applicationInfo,
-            static_cast<uint32_t>(extensions.size()),
-            extensions.data(),
-            0,
-            {});
-    }
+    instanceCreateInfo = vk::InstanceCreateInfo({}, &applicationInfo, validationLayers, extensions);
 
     return vk::raii::Instance(context, instanceCreateInfo);
 }

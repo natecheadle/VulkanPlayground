@@ -5,6 +5,7 @@ GLFWWindow::GLFWWindow()
     , m_Width(DEFAULT_WIDTH)
     , m_Height(DEFAULT_HEIGHT)
     , m_RequiredExtensions(createExtensionList())
+    , f_RunWindow([]() { return; })
 {
 }
 
@@ -13,6 +14,7 @@ GLFWWindow::GLFWWindow(int width, int height)
     , m_Width(width)
     , m_Height(height)
     , m_RequiredExtensions(createExtensionList())
+    , f_RunWindow([]() { return; })
 {
 }
 

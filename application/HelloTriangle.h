@@ -33,10 +33,10 @@ class HelloTriangle {
 
     void Run();
 
-    static bool checkLayers(std::vector<char const*> const& layers, std::vector<vk::LayerProperties> const& properties)
+    static bool checkLayers(std::vector<const char*> const& layers, std::vector<vk::LayerProperties> const& properties)
     {
         // return true if all layers are listed in the properties
-        return std::all_of(layers.begin(), layers.end(), [&properties](char const* name) {
+        return std::all_of(layers.begin(), layers.end(), [&properties](const char* name) {
             return std::find_if(properties.begin(), properties.end(), [&name](vk::LayerProperties const& property) {
                        return strcmp(property.layerName, name) == 0;
                    }) != properties.end();
