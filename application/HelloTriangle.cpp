@@ -35,7 +35,8 @@ void HelloTriangle::Run()
 vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& context, const GLFWWindow& window)
 {
 
-    std::vector<vk::LayerProperties> instanceLayerProperties = context.enumerateInstanceLayerProperties();
+    std::vector<vk::LayerProperties>     instanceLayerProperties     = context.enumerateInstanceLayerProperties();
+    std::vector<vk::ExtensionProperties> instanceExtensionProperties = context.enumerateInstanceExtensionProperties();
 
     // initialize the vk::ApplicationInfo structure
     vk::ApplicationInfo applicationInfo(
@@ -46,6 +47,14 @@ vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& contex
         VK_API_VERSION_1_0);
 
     std::vector<const char*> extensions = window.GetExtensions();
+    for (const auto& extensionProperties : instanceExtensionProperties)
+    {
+        if (strcmp(extensionProperties.extensionName, "VK_KHR_get_physical_device_properties2"))
+        {
+            m_EnablePortabilityExtension = true;
+            extensions.push_back("VK_KHR_get_physical_device_properties2");
+        }
+    }
 
     vk::InstanceCreateInfo instanceCreateInfo;
 
@@ -119,9 +128,15 @@ vk::raii::Device HelloTriangle::createDevice(const vk::raii::PhysicalDevice& phy
 
     std::vector<const char*> validationLayers;
     std::vector<const char*> extensions;
+
+    if (m_EnablePortabilityExtension)
+    {
+        extensions.push_back("VK_KHR_portability_subset");
+    }
+
     if constexpr (ENABLE_VALIDATION)
     {
-        // validationLayers = VulkanDebugLog::GetLayers();
+        validationLayers = VulkanDebugLog::GetLayers();
     }
 
     vk::PhysicalDeviceFeatures physicalFeatures;

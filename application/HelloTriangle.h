@@ -31,6 +31,8 @@ class HelloTriangle {
     static const std::string AppName;
     static const std::string EngineName;
 
+    bool m_EnablePortabilityExtension = false;
+
     GLFWWindow m_Window;
 
     vk::raii::Context    m_Context;
@@ -59,9 +61,8 @@ class HelloTriangle {
     }
 
   private:
+    vk::raii::Instance       createInstance(const vk::raii::Context& context, const GLFWWindow& window);
     QueueFamilyIndices       getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice);
-    vk::raii::Device         createDevice(const vk::raii::PhysicalDevice& physicalDevice);
     vk::raii::PhysicalDevice getPhysicalDevice(const vk::raii::Instance& instance);
-
-    static vk::raii::Instance createInstance(const vk::raii::Context& context, const GLFWWindow& window);
+    vk::raii::Device         createDevice(const vk::raii::PhysicalDevice& physicalDevice);
 };
