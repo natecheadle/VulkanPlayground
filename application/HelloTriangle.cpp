@@ -17,7 +17,8 @@ HelloTriangle::HelloTriangle()
               vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation)
 #endif
     , m_PhysicalDevice(getPhysicalDevice(m_Instance))
-    , m_Device(createDevice(m_PhysicalDevice))
+    , m_Device(createDevice())
+    , m_SwapChain(createSwapChain())
 {
 }
 
@@ -117,17 +118,15 @@ HelloTriangle::QueueFamilyIndices HelloTriangle::getQueueFamilyIndeces(const vk:
     return indexes;
 }
 
-vk::raii::Device HelloTriangle::createDevice(const vk::raii::PhysicalDevice& physicalDevice)
+vk::raii::Device HelloTriangle::createDevice()
 {
-    QueueFamilyIndices indexes = getQueueFamilyIndeces(physicalDevice);
+    QueueFamilyIndices indexes = getQueueFamilyIndeces(m_PhysicalDevice);
 
     float                     queuePriority = 1.0f;
     vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, indexes.graphicsFamily.value(), 1, &queuePriority);
 
-    auto deviceExtensions = physicalDevice.enumerateDeviceExtensionProperties();
-
     std::vector<const char*> validationLayers;
-    std::vector<const char*> extensions;
+    std::vector<const char*> extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
     if (m_EnablePortabilityExtension)
     {
@@ -139,9 +138,142 @@ vk::raii::Device HelloTriangle::createDevice(const vk::raii::PhysicalDevice& phy
         validationLayers = VulkanDebugLog::GetLayers();
     }
 
+    if (!areDeviceExtensionsSupported(extensions, m_PhysicalDevice))
+    {
+        throw("Required device extensions are not supported.");
+    }
+
     vk::PhysicalDeviceFeatures physicalFeatures;
 
     vk::DeviceCreateInfo deviceCreateInfo({}, deviceQueueCreateInfo, validationLayers, extensions, &physicalFeatures);
 
-    return vk::raii::Device(physicalDevice, deviceCreateInfo);
+    return vk::raii::Device(m_PhysicalDevice, deviceCreateInfo);
+}
+
+HelloTriangle::SwapChainSupportDetails HelloTriangle::getSwapChainSupportDetails()
+{
+    SwapChainSupportDetails swapChainDetails;
+
+    swapChainDetails.formats      = m_PhysicalDevice.getSurfaceFormatsKHR(static_cast<vk::SurfaceKHR>(*m_Surface));
+    swapChainDetails.presentModes = m_PhysicalDevice.getSurfacePresentModesKHR(static_cast<vk::SurfaceKHR>(*m_Surface));
+    if (swapChainDetails.formats.empty() || swapChainDetails.presentModes.empty())
+    {
+        throw std::runtime_error("Device must have both valid formats and presentModes.");
+    }
+
+    swapChainDetails.capabilities = m_PhysicalDevice.getSurfaceCapabilitiesKHR(static_cast<vk::SurfaceKHR>(*m_Surface));
+
+    return swapChainDetails;
+}
+
+vk::raii::SwapchainKHR HelloTriangle::createSwapChain()
+{
+    auto getSwapChainFormat = [](const std::vector<vk::SurfaceFormatKHR>& availableFormats) {
+        for (const auto& availableFormat : availableFormats)
+        {
+            if (availableFormat.format == vk::Format::eB8G8R8A8Srgb &&
+                availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+            {
+                return availableFormat;
+            }
+        }
+
+        throw std::runtime_error("could not find valid surface format.");
+    };
+
+    auto getPresentMode = [](const std::vector<vk::PresentModeKHR>& availablePresentModes) {
+        for (const auto& availablePresentMode : availablePresentModes)
+        {
+            if (availablePresentMode == vk::PresentModeKHR::eMailbox)
+            {
+                return availablePresentMode;
+            }
+        }
+
+        return vk::PresentModeKHR::eFifo;
+    };
+
+    auto get2DExtents = [](vk::SurfaceCapabilitiesKHR capabilities, GLFWWindow::FrameBufferSize frameBufferSize) {
+        if (capabilities.currentExtent.width != UINT32_MAX)
+        {
+            return capabilities.currentExtent;
+        }
+        else
+        {
+            vk::Extent2D actualExtent(
+                static_cast<uint32_t>(frameBufferSize.Width),
+                static_cast<uint32_t>(frameBufferSize.Height));
+
+            actualExtent.width =
+                std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+            actualExtent.height =
+                std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+            return actualExtent;
+        }
+    };
+
+    SwapChainSupportDetails swapChainSupport = getSwapChainSupportDetails();
+
+    vk::SurfaceFormatKHR surfaceFormat = getSwapChainFormat(swapChainSupport.formats);
+    vk::PresentModeKHR   presentMode   = getPresentMode(swapChainSupport.presentModes);
+    vk::Extent2D         extents       = get2DExtents(swapChainSupport.capabilities, m_Window.GetFrameBufferSize());
+
+    uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
+    {
+        imageCount = swapChainSupport.capabilities.maxImageCount;
+    }
+
+    vk::SwapchainCreateInfoKHR createInfo(
+        {},
+        static_cast<vk::SurfaceKHR>(*m_Surface),
+        imageCount,
+        surfaceFormat.format,
+        surfaceFormat.colorSpace,
+        extents,
+        1,
+        vk::ImageUsageFlagBits::eColorAttachment,
+        vk::SharingMode::eExclusive,
+        {},
+        {},
+        swapChainSupport.capabilities.currentTransform,
+        vk::CompositeAlphaFlagBitsKHR::eOpaque,
+        presentMode,
+        VK_TRUE,
+        VK_NULL_HANDLE);
+
+    return vk::raii::SwapchainKHR(m_Device, createInfo);
+}
+
+bool HelloTriangle::areDeviceExtensionsSupported(
+    std::vector<const char*>        extensions,
+    const vk::raii::PhysicalDevice& physicalDevice)
+{
+    auto deviceExtensions = physicalDevice.enumerateDeviceExtensionProperties();
+    for (auto& extension : deviceExtensions)
+    {
+        std::string extensionName(extension.extensionName);
+
+        auto it = extensions.begin();
+        while (it != extensions.end())
+        {
+            if (std::string(*it) == extensionName)
+            {
+                break; // While()
+            }
+            ++it;
+        }
+        if (it != extensions.end())
+        {
+            extensions.erase(it);
+        }
+
+        if (extensions.empty())
+        {
+            break; // For()
+        }
+    }
+
+    return extensions.empty();
 }

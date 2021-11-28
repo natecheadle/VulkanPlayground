@@ -22,6 +22,13 @@ class HelloTriangle {
         bool isComplete() { return graphicsFamily.has_value() && presentFamily.has_value(); }
     };
 
+    struct SwapChainSupportDetails
+    {
+        vk::SurfaceCapabilitiesKHR        capabilities;
+        std::vector<vk::SurfaceFormatKHR> formats;
+        std::vector<vk::PresentModeKHR>   presentModes;
+    };
+
 #ifdef NDEBUG
     static constexpr bool ENABLE_VALIDATION = false;
 #else
@@ -38,11 +45,15 @@ class HelloTriangle {
     vk::raii::Context    m_Context;
     vk::raii::Instance   m_Instance;
     vk::raii::SurfaceKHR m_Surface;
+
 #ifndef NDEBUG
     VulkanDebugLog m_Logger;
 #endif
+
     vk::raii::PhysicalDevice m_PhysicalDevice;
     vk::raii::Device         m_Device;
+
+    vk::raii::SwapchainKHR m_SwapChain;
 
   public:
     HelloTriangle();
@@ -64,5 +75,11 @@ class HelloTriangle {
     vk::raii::Instance       createInstance(const vk::raii::Context& context, const GLFWWindow& window);
     QueueFamilyIndices       getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice);
     vk::raii::PhysicalDevice getPhysicalDevice(const vk::raii::Instance& instance);
-    vk::raii::Device         createDevice(const vk::raii::PhysicalDevice& physicalDevice);
+    vk::raii::Device         createDevice();
+    SwapChainSupportDetails  getSwapChainSupportDetails();
+    vk::raii::SwapchainKHR   createSwapChain();
+
+    static bool areDeviceExtensionsSupported(
+        std::vector<const char*>        extensions,
+        const vk::raii::PhysicalDevice& physicalDevice);
 };

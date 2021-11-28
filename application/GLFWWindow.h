@@ -15,6 +15,12 @@ class GLFWWindow {
     static constexpr int DEFAULT_WIDTH  = 800;
     static constexpr int DEFAULT_HEIGHT = 600;
 
+    struct FrameBufferSize
+    {
+        int Height;
+        int Width;
+    };
+
   private:
     GLFWwindow* m_pWindow;
 
@@ -33,6 +39,8 @@ class GLFWWindow {
     std::vector<const char*>&       AppendExtensions(std::vector<const char*>& extensions) const;
 
     vk::raii::SurfaceKHR CreateSurface(const vk::raii::Instance& instance);
+
+    FrameBufferSize GetFrameBufferSize();
 
     virtual bool ShouldClose() { return glfwWindowShouldClose(m_pWindow); }
     void         SetMainLoop(const std::function<void()>& f_mainLoop) { f_RunWindow = f_mainLoop; }

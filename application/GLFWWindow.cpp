@@ -45,6 +45,13 @@ vk::raii::SurfaceKHR GLFWWindow::CreateSurface(const vk::raii::Instance& instanc
     return vk::raii::SurfaceKHR(instance, surface);
 }
 
+GLFWWindow::FrameBufferSize GLFWWindow::GetFrameBufferSize()
+{
+    int width, height;
+    glfwGetFramebufferSize(m_pWindow, &width, &height);
+    return {width, height};
+}
+
 GLFWwindow* GLFWWindow::createWindow(int width, int height)
 {
     glfwInit();
