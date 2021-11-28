@@ -53,7 +53,8 @@ class HelloTriangle {
     vk::raii::PhysicalDevice m_PhysicalDevice;
     vk::raii::Device         m_Device;
 
-    vk::raii::SwapchainKHR m_SwapChain;
+    vk::raii::SwapchainKHR           m_SwapChain;
+    std::vector<vk::raii::ImageView> m_ImageViews;
 
   public:
     HelloTriangle();
@@ -72,14 +73,16 @@ class HelloTriangle {
     }
 
   private:
-    vk::raii::Instance       createInstance(const vk::raii::Context& context, const GLFWWindow& window);
-    QueueFamilyIndices       getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice);
-    vk::raii::PhysicalDevice getPhysicalDevice(const vk::raii::Instance& instance);
-    vk::raii::Device         createDevice();
-    SwapChainSupportDetails  getSwapChainSupportDetails();
-    vk::raii::SwapchainKHR   createSwapChain();
+    vk::raii::Instance               createInstance(const vk::raii::Context& context, const GLFWWindow& window);
+    QueueFamilyIndices               getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice);
+    vk::raii::PhysicalDevice         getPhysicalDevice(const vk::raii::Instance& instance);
+    vk::raii::Device                 createDevice();
+    SwapChainSupportDetails          getSwapChainSupportDetails();
+    vk::raii::SwapchainKHR           createSwapChain();
+    std::vector<vk::raii::ImageView> createImageViews();
 
-    static bool areDeviceExtensionsSupported(
-        std::vector<const char*>        extensions,
-        const vk::raii::PhysicalDevice& physicalDevice);
+    static vk::SurfaceFormatKHR getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
+    static bool                 areDeviceExtensionsSupported(
+                        std::vector<const char*>        extensions,
+                        const vk::raii::PhysicalDevice& physicalDevice);
 };

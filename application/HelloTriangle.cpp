@@ -19,6 +19,7 @@ HelloTriangle::HelloTriangle()
     , m_PhysicalDevice(getPhysicalDevice(m_Instance))
     , m_Device(createDevice())
     , m_SwapChain(createSwapChain())
+    , m_ImageViews(createImageViews())
 {
 }
 
@@ -168,19 +169,6 @@ HelloTriangle::SwapChainSupportDetails HelloTriangle::getSwapChainSupportDetails
 
 vk::raii::SwapchainKHR HelloTriangle::createSwapChain()
 {
-    auto getSwapChainFormat = [](const std::vector<vk::SurfaceFormatKHR>& availableFormats) {
-        for (const auto& availableFormat : availableFormats)
-        {
-            if (availableFormat.format == vk::Format::eB8G8R8A8Srgb &&
-                availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
-            {
-                return availableFormat;
-            }
-        }
-
-        throw std::runtime_error("could not find valid surface format.");
-    };
-
     auto getPresentMode = [](const std::vector<vk::PresentModeKHR>& availablePresentModes) {
         for (const auto& availablePresentMode : availablePresentModes)
         {
@@ -244,6 +232,46 @@ vk::raii::SwapchainKHR HelloTriangle::createSwapChain()
         VK_NULL_HANDLE);
 
     return vk::raii::SwapchainKHR(m_Device, createInfo);
+}
+
+std::vector<vk::raii::ImageView> HelloTriangle::createImageViews()
+{
+    std::vector<vk::raii::ImageView> imageViews;
+
+    SwapChainSupportDetails swapChainSupport = getSwapChainSupportDetails();
+    std::vector<VkImage>    swapChainImages  = m_SwapChain.getImages();
+    vk::SurfaceFormatKHR    surfaceFormat    = getSwapChainFormat(swapChainSupport.formats);
+
+    imageViews.reserve(swapChainImages.size());
+    vk::ImageViewCreateInfo imageViewCreateInfo(
+        {},
+        {},
+        vk::ImageViewType::e2D,
+        surfaceFormat.format,
+        {},
+        {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+
+    for (auto image : swapChainImages)
+    {
+        imageViewCreateInfo.image = static_cast<vk::Image>(image);
+        imageViews.push_back({m_Device, imageViewCreateInfo});
+    }
+
+    return imageViews;
+}
+
+vk::SurfaceFormatKHR HelloTriangle::getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
+{
+    for (const auto& availableFormat : availableFormats)
+    {
+        if (availableFormat.format == vk::Format::eB8G8R8A8Srgb &&
+            availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+        {
+            return availableFormat;
+        }
+    }
+
+    throw std::runtime_error("could not find valid surface format.");
 }
 
 bool HelloTriangle::areDeviceExtensionsSupported(
