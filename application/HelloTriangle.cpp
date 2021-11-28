@@ -20,6 +20,7 @@ HelloTriangle::HelloTriangle()
     , m_Device(createDevice())
     , m_SwapChain(createSwapChain())
     , m_ImageViews(createImageViews())
+    , m_PipelineLayout(createPipelineLayout())
 {
 }
 
@@ -258,6 +259,17 @@ std::vector<vk::raii::ImageView> HelloTriangle::createImageViews()
     }
 
     return imageViews;
+}
+
+vk::raii::PipelineLayout HelloTriangle::createPipelineLayout()
+{
+    Shader fragShader("shaders/fragment.frag.bin");
+    Shader vertexShader("shaders/vertex.vert.bin");
+
+    vk::DescriptorSetLayoutBinding descriptorSetLayoutBinding;
+
+    vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+    return vk::raii::PipelineLayout(m_Device, pipelineLayoutCreateInfo);
 }
 
 vk::SurfaceFormatKHR HelloTriangle::getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)

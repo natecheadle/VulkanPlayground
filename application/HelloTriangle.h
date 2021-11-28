@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GLFWWindow.h"
+#include "Shader.h"
 #include "VulkanDebugLog.h"
 
 #include <vulkan/vulkan_raii.hpp>
@@ -56,6 +57,8 @@ class HelloTriangle {
     vk::raii::SwapchainKHR           m_SwapChain;
     std::vector<vk::raii::ImageView> m_ImageViews;
 
+    vk::raii::PipelineLayout m_PipelineLayout;
+
   public:
     HelloTriangle();
     ~HelloTriangle();
@@ -80,6 +83,7 @@ class HelloTriangle {
     SwapChainSupportDetails          getSwapChainSupportDetails();
     vk::raii::SwapchainKHR           createSwapChain();
     std::vector<vk::raii::ImageView> createImageViews();
+    vk::raii::PipelineLayout         createPipelineLayout();
 
     static vk::SurfaceFormatKHR getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     static bool                 areDeviceExtensionsSupported(

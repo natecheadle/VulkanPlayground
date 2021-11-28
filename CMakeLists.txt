@@ -13,7 +13,8 @@ add_executable(${PROJECT_NAME}
     "main.cpp" 
     "application/HelloTriangle.cpp"
     "application/GLFWWindow.cpp"
-    "application/VulkanDebugLog.cpp")
+    "application/VulkanDebugLog.cpp"
+    "application/Shader.cpp")
 compile_shader(${PROJECT_NAME}
     ENV vulkan
     FORMAT bin
