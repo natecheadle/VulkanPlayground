@@ -35,7 +35,7 @@ class HelloTriangle {
 #else
     static constexpr bool ENABLE_VALIDATION = true;
 #endif
-
+    static constexpr int     MAX_FRAMES_IN_FLIGHT = 2;
     static const std::string AppName;
     static const std::string EngineName;
 
@@ -61,9 +61,21 @@ class HelloTriangle {
     vk::raii::SwapchainKHR           m_SwapChain;
     std::vector<vk::raii::ImageView> m_ImageViews;
 
-    vk::raii::RenderPass m_RenderPass;
+    vk::raii::RenderPass     m_RenderPass;
+    vk::raii::PipelineLayout m_PipelineLayout;
+    vk::raii::Pipeline       m_Pipeline;
 
-    vk::raii::Pipeline m_Pipeline;
+    std::vector<vk::raii::Framebuffer> m_Framebuffers;
+    vk::raii::CommandPool              m_CommandPool;
+    vk::raii::CommandBuffers           m_CommandBuffers;
+
+    std::vector<vk::raii::Semaphore> m_ImageAvailableSemaphores;
+    std::vector<vk::raii::Semaphore> m_RenderFinishedSemaphores;
+    std::vector<vk::raii::Fence>     m_InFlightFences;
+    std::vector<vk::raii::Fence*>    m_ImagesInFlight;
+
+    size_t m_CurrentFrame;
+    bool   m_FramebufferResized;
 
   public:
     HelloTriangle();
@@ -82,15 +94,22 @@ class HelloTriangle {
     }
 
   private:
-    vk::raii::Instance               createInstance(const vk::raii::Context& context, const GLFWWindow& window);
-    QueueFamilyIndices               getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice);
-    vk::raii::PhysicalDevice         getPhysicalDevice(const vk::raii::Instance& instance);
-    vk::raii::Device                 createDevice();
-    SwapChainSupportDetails          getSwapChainSupportDetails();
-    vk::raii::SwapchainKHR           createSwapChain();
-    std::vector<vk::raii::ImageView> createImageViews();
-    vk::raii::RenderPass             createRenderPass();
-    vk::raii::Pipeline               createPipeline();
+    vk::raii::Instance                 createInstance(const vk::raii::Context& context, const GLFWWindow& window);
+    QueueFamilyIndices                 getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice);
+    vk::raii::PhysicalDevice           getPhysicalDevice(const vk::raii::Instance& instance);
+    vk::raii::Device                   createDevice();
+    SwapChainSupportDetails            getSwapChainSupportDetails();
+    vk::raii::SwapchainKHR             createSwapChain();
+    std::vector<vk::raii::ImageView>   createImageViews();
+    vk::raii::RenderPass               createRenderPass();
+    vk::raii::PipelineLayout           createPipelineLayout();
+    vk::raii::Pipeline                 createPipeline();
+    std::vector<vk::raii::Framebuffer> createFrameBuffers();
+    vk::raii::CommandPool              createCommandPool();
+    vk::raii::CommandBuffers           createCommandBuffers();
+
+    void drawFrame();
+    void recreateSwapChain();
 
     static vk::SurfaceFormatKHR getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     static bool                 areDeviceExtensionsSupported(

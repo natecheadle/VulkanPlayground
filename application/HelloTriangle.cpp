@@ -23,15 +23,32 @@ HelloTriangle::HelloTriangle()
     , m_SwapChain(createSwapChain())
     , m_ImageViews(createImageViews())
     , m_RenderPass(createRenderPass())
+    , m_PipelineLayout(createPipelineLayout())
     , m_Pipeline(createPipeline())
+    , m_Framebuffers(createFrameBuffers())
+    , m_CommandPool(createCommandPool())
+    , m_CommandBuffers(createCommandBuffers())
+    , m_CurrentFrame(0)
+    , m_FramebufferResized(false)
 {
+    vk::SemaphoreCreateInfo semaphoreInfo;
+    vk::FenceCreateInfo     fenceInfo(vk::FenceCreateFlagBits::eSignaled);
+
+    m_ImagesInFlight.resize(m_ImageViews.size(), nullptr);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        m_ImageAvailableSemaphores.push_back(vk::raii::Semaphore(m_Device, semaphoreInfo));
+        m_RenderFinishedSemaphores.push_back(vk::raii::Semaphore(m_Device, semaphoreInfo));
+        m_InFlightFences.push_back(vk::raii::Fence(m_Device, fenceInfo));
+    }
 }
 
 HelloTriangle::~HelloTriangle() {}
 
 void HelloTriangle::Run()
 {
-
+    m_Window.SetMainLoop(std::bind(&HelloTriangle::drawFrame, this));
     while (!m_Window.ShouldClose())
     {
         m_Window.Run();
@@ -265,6 +282,12 @@ vk::raii::RenderPass HelloTriangle::createRenderPass()
     return vk::raii::RenderPass(m_Device, renderPassCreateInfo);
 }
 
+vk::raii::PipelineLayout HelloTriangle::createPipelineLayout()
+{
+    vk::PipelineLayoutCreateInfo pipeLineCreateInfo;
+    return vk::raii::PipelineLayout(m_Device, pipeLineCreateInfo);
+}
+
 vk::raii::Pipeline HelloTriangle::createPipeline()
 {
     Shader fragShader("shaders/fragment.frag.bin");
@@ -356,9 +379,6 @@ vk::raii::Pipeline HelloTriangle::createPipeline()
     std::array<vk::DynamicState, 2>    dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
     vk::PipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo({}, dynamicStates);
 
-    vk::PipelineLayoutCreateInfo pipeLineCreateInfo;
-    vk::raii::PipelineLayout     pipelineLayout(m_Device, pipeLineCreateInfo);
-
     vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
         {},                                    // flags
         pipelineShaderStageCreateInfos,        // stages
@@ -371,7 +391,7 @@ vk::raii::Pipeline HelloTriangle::createPipeline()
         &pipelineDepthStencilStateCreateInfo,  // pDepthStencilState
         &pipelineColorBlendStateCreateInfo,    // pColorBlendState
         &pipelineDynamicStateCreateInfo,       // pDynamicState
-        *pipelineLayout,                       // layout
+        *m_PipelineLayout,                     // layout
         *m_RenderPass                          // renderPass
     );
 
@@ -382,6 +402,169 @@ vk::raii::Pipeline HelloTriangle::createPipeline()
         throw std::runtime_error("Falid to create Graphics Pipeline.");
     }
     return pipeline;
+}
+
+std::vector<vk::raii::Framebuffer> HelloTriangle::createFrameBuffers()
+{
+
+    std::vector<vk::raii::Framebuffer> framebuffers;
+    framebuffers.reserve(m_ImageViews.size());
+
+    std::array<vk::ImageView, 1> attachments;
+
+    for (auto const& view : m_ImageViews)
+    {
+        attachments[0] = *view;
+        vk::FramebufferCreateInfo framebufferCreateInfo(
+            {},
+            *m_RenderPass,
+            attachments,
+            m_SwapChainExtents.width,
+            m_SwapChainExtents.height,
+            1);
+        framebuffers.push_back(vk::raii::Framebuffer(m_Device, framebufferCreateInfo));
+    }
+
+    return framebuffers;
+}
+
+vk::raii::CommandPool HelloTriangle::createCommandPool()
+{
+    QueueFamilyIndices indexes = getQueueFamilyIndeces(m_PhysicalDevice);
+
+    // create a CommandPool to allocate a CommandBuffer from
+    vk::CommandPoolCreateInfo commandPoolCreateInfo({}, indexes.graphicsFamily.value());
+    return vk::raii::CommandPool(m_Device, commandPoolCreateInfo);
+}
+
+vk::raii::CommandBuffers HelloTriangle::createCommandBuffers()
+{
+
+    // allocate a CommandBuffer from the CommandPool
+    vk::CommandBufferAllocateInfo commandBufferAllocateInfo(
+        *m_CommandPool,
+        vk::CommandBufferLevel::ePrimary,
+        m_Framebuffers.size());
+    vk::raii::CommandBuffers commandBuffers(m_Device, commandBufferAllocateInfo);
+
+    std::array<vk::ClearValue, 1> clearValues;
+    clearValues[0].color = vk::ClearColorValue(std::array<float, 4>({
+        {0.0f, 0.0f, 0.0f, 1.0f}
+    }));
+
+    int i = 0;
+    for (auto& commandBuffer : commandBuffers)
+    {
+        vk::RenderPassBeginInfo renderPassBeginInfo(
+            *m_RenderPass,
+            *m_Framebuffers[i],
+            vk::Rect2D(vk::Offset2D(0, 0), m_SwapChainExtents),
+            clearValues);
+
+        commandBuffer.begin({});
+        commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+        commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_Pipeline);
+        commandBuffer.setViewport(
+            0,
+            vk::Viewport(
+                0.0f,
+                0.0f,
+                static_cast<float>(m_SwapChainExtents.width),
+                static_cast<float>(m_SwapChainExtents.height),
+                0.0f,
+                1.0f));
+        commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), m_SwapChainExtents));
+        commandBuffer.draw(3, 1, 0, 0);
+        commandBuffer.endRenderPass();
+        commandBuffer.end();
+
+        ++i;
+    }
+
+    return std::move(commandBuffers);
+}
+
+void HelloTriangle::drawFrame()
+{
+    if (vk::Result::eSuccess != m_Device.waitForFences(*(m_InFlightFences[m_CurrentFrame]), VK_TRUE, UINT64_MAX))
+    {
+        throw std::runtime_error("Failed waiting for fence to clear.");
+    }
+
+    vk::Result result;
+    uint32_t   imageIndex;
+
+    std::tie(result, imageIndex) =
+        m_SwapChain.acquireNextImage(UINT64_MAX, *(m_ImageAvailableSemaphores[m_CurrentFrame]));
+
+    if (result == vk::Result::eErrorOutOfDateKHR)
+    {
+        recreateSwapChain();
+        return;
+    }
+    else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+    {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    if (imageIndex >= m_ImageViews.size())
+    {
+        throw std::runtime_error("Failed to get next image.");
+    }
+
+    if (m_ImagesInFlight.at(imageIndex))
+    {
+        if (vk::Result::eSuccess != m_Device.waitForFences(*(*m_ImagesInFlight[imageIndex]), VK_TRUE, UINT64_MAX))
+        {
+            throw std::runtime_error("Failed waiting for fence to clear.");
+        }
+    }
+    m_ImagesInFlight[imageIndex] = &m_InFlightFences[m_CurrentFrame];
+
+    vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+
+    vk::SubmitInfo submitInfo(
+        *(m_ImageAvailableSemaphores[m_CurrentFrame]),
+        waitDestinationStageMask,
+        *(m_CommandBuffers[imageIndex]),
+        *(m_RenderFinishedSemaphores[m_CurrentFrame]));
+
+    m_Device.resetFences(*(m_InFlightFences[m_CurrentFrame]));
+
+    m_GraphicsQueue.submit(submitInfo, *(m_InFlightFences[m_CurrentFrame]));
+
+    vk::PresentInfoKHR presentInfoKHR(*(m_RenderFinishedSemaphores[m_CurrentFrame]), *m_SwapChain, imageIndex);
+    result = m_PresentQueue.presentKHR(presentInfoKHR);
+
+    if (result == vk::Result::eErrorOutOfDateKHR)
+    {
+        m_FramebufferResized = false;
+        recreateSwapChain();
+        return;
+    }
+    else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+    {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void HelloTriangle::recreateSwapChain()
+{
+    m_Device.waitIdle();
+
+    m_SwapChain      = createSwapChain();
+    m_ImageViews     = createImageViews();
+    m_RenderPass     = createRenderPass();
+    m_Pipeline       = createPipeline();
+    m_Framebuffers   = createFrameBuffers();
+    m_CommandBuffers = createCommandBuffers();
+
+    for (auto& fence : m_ImagesInFlight)
+    {
+        fence = nullptr;
+    }
 }
 
 vk::SurfaceFormatKHR HelloTriangle::getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
