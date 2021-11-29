@@ -53,11 +53,17 @@ class HelloTriangle {
 
     vk::raii::PhysicalDevice m_PhysicalDevice;
     vk::raii::Device         m_Device;
+    vk::raii::Queue          m_GraphicsQueue;
+    vk::raii::Queue          m_PresentQueue;
 
+    vk::SurfaceFormatKHR             m_SwapChainImageFormat;
+    vk::Extent2D                     m_SwapChainExtents;
     vk::raii::SwapchainKHR           m_SwapChain;
     std::vector<vk::raii::ImageView> m_ImageViews;
 
-    vk::raii::PipelineLayout m_PipelineLayout;
+    vk::raii::RenderPass m_RenderPass;
+
+    vk::raii::Pipeline m_Pipeline;
 
   public:
     HelloTriangle();
@@ -83,10 +89,12 @@ class HelloTriangle {
     SwapChainSupportDetails          getSwapChainSupportDetails();
     vk::raii::SwapchainKHR           createSwapChain();
     std::vector<vk::raii::ImageView> createImageViews();
-    vk::raii::PipelineLayout         createPipelineLayout();
+    vk::raii::RenderPass             createRenderPass();
+    vk::raii::Pipeline               createPipeline();
 
     static vk::SurfaceFormatKHR getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     static bool                 areDeviceExtensionsSupported(
                         std::vector<const char*>        extensions,
                         const vk::raii::PhysicalDevice& physicalDevice);
+    vk::Extent2D get2DExtents(vk::SurfaceCapabilitiesKHR capabilities, GLFWWindow::FrameBufferSize frameBufferSize);
 };

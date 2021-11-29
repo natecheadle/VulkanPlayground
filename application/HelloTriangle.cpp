@@ -18,9 +18,12 @@ HelloTriangle::HelloTriangle()
 #endif
     , m_PhysicalDevice(getPhysicalDevice(m_Instance))
     , m_Device(createDevice())
+    , m_GraphicsQueue(m_Device, getQueueFamilyIndeces(m_PhysicalDevice).graphicsFamily.value(), 0)
+    , m_PresentQueue(m_Device, getQueueFamilyIndeces(m_PhysicalDevice).presentFamily.value(), 0)
     , m_SwapChain(createSwapChain())
     , m_ImageViews(createImageViews())
-    , m_PipelineLayout(createPipelineLayout())
+    , m_RenderPass(createRenderPass())
+    , m_Pipeline(createPipeline())
 {
 }
 
@@ -182,31 +185,11 @@ vk::raii::SwapchainKHR HelloTriangle::createSwapChain()
         return vk::PresentModeKHR::eFifo;
     };
 
-    auto get2DExtents = [](vk::SurfaceCapabilitiesKHR capabilities, GLFWWindow::FrameBufferSize frameBufferSize) {
-        if (capabilities.currentExtent.width != UINT32_MAX)
-        {
-            return capabilities.currentExtent;
-        }
-        else
-        {
-            vk::Extent2D actualExtent(
-                static_cast<uint32_t>(frameBufferSize.Width),
-                static_cast<uint32_t>(frameBufferSize.Height));
-
-            actualExtent.width =
-                std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-            actualExtent.height =
-                std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-
-            return actualExtent;
-        }
-    };
-
     SwapChainSupportDetails swapChainSupport = getSwapChainSupportDetails();
 
-    vk::SurfaceFormatKHR surfaceFormat = getSwapChainFormat(swapChainSupport.formats);
-    vk::PresentModeKHR   presentMode   = getPresentMode(swapChainSupport.presentModes);
-    vk::Extent2D         extents       = get2DExtents(swapChainSupport.capabilities, m_Window.GetFrameBufferSize());
+    m_SwapChainImageFormat         = getSwapChainFormat(swapChainSupport.formats);
+    vk::PresentModeKHR presentMode = getPresentMode(swapChainSupport.presentModes);
+    m_SwapChainExtents             = get2DExtents(swapChainSupport.capabilities, m_Window.GetFrameBufferSize());
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
@@ -218,9 +201,9 @@ vk::raii::SwapchainKHR HelloTriangle::createSwapChain()
         {},
         static_cast<vk::SurfaceKHR>(*m_Surface),
         imageCount,
-        surfaceFormat.format,
-        surfaceFormat.colorSpace,
-        extents,
+        m_SwapChainImageFormat.format,
+        m_SwapChainImageFormat.colorSpace,
+        m_SwapChainExtents,
         1,
         vk::ImageUsageFlagBits::eColorAttachment,
         vk::SharingMode::eExclusive,
@@ -261,15 +244,144 @@ std::vector<vk::raii::ImageView> HelloTriangle::createImageViews()
     return imageViews;
 }
 
-vk::raii::PipelineLayout HelloTriangle::createPipelineLayout()
+vk::raii::RenderPass HelloTriangle::createRenderPass()
+{
+    std::array<vk::AttachmentDescription, 1> attachmentDescriptions;
+    attachmentDescriptions[0] = vk::AttachmentDescription(
+        {},
+        m_SwapChainImageFormat.format,
+        vk::SampleCountFlagBits::e1,
+        vk::AttachmentLoadOp::eClear,
+        vk::AttachmentStoreOp::eStore,
+        vk::AttachmentLoadOp::eDontCare,
+        vk::AttachmentStoreOp::eDontCare,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::ePresentSrcKHR);
+
+    vk::AttachmentReference colorReference(0, vk::ImageLayout::eColorAttachmentOptimal);
+    vk::SubpassDescription  subpass({}, vk::PipelineBindPoint::eGraphics, {}, colorReference);
+
+    vk::RenderPassCreateInfo renderPassCreateInfo({}, attachmentDescriptions, subpass);
+    return vk::raii::RenderPass(m_Device, renderPassCreateInfo);
+}
+
+vk::raii::Pipeline HelloTriangle::createPipeline()
 {
     Shader fragShader("shaders/fragment.frag.bin");
     Shader vertexShader("shaders/vertex.vert.bin");
 
-    vk::DescriptorSetLayoutBinding descriptorSetLayoutBinding;
+    vk::raii::ShaderModule vertexShaderModule = vertexShader.GetShaderModule(m_Device);
+    vk::raii::ShaderModule fragShaderModule   = fragShader.GetShaderModule(m_Device);
 
-    vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-    return vk::raii::PipelineLayout(m_Device, pipelineLayoutCreateInfo);
+    std::array<vk::PipelineShaderStageCreateInfo, 2> pipelineShaderStageCreateInfos = {
+        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, *vertexShaderModule, "main"),
+        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, *fragShaderModule, "main")};
+
+    vk::PipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo(
+        {}, // flags
+        0,
+        0);
+
+    vk::PipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo(
+        {},
+        vk::PrimitiveTopology::eTriangleList,
+        VK_FALSE);
+
+    std::vector<vk::Rect2D> scissor;
+    scissor.push_back(vk::Rect2D(vk::Offset2D(0, 0), m_SwapChainExtents));
+    std::vector<vk::Viewport> viewport;
+    viewport.push_back(vk::Viewport(0.0f, 0.0f, m_SwapChainExtents.width, m_SwapChainExtents.height, 0.0f, 1.0f));
+
+    vk::PipelineViewportStateCreateInfo pipelineViewportStateCreateInfo({}, viewport, scissor);
+
+    vk::PipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo(
+        {},                          // flags
+        false,                       // depthClampEnable
+        false,                       // rasterizerDiscardEnable
+        vk::PolygonMode::eFill,      // polygonMode
+        vk::CullModeFlagBits::eBack, // cullMode
+        vk::FrontFace::eClockwise,   // frontFace
+        false,                       // depthBiasEnable
+        0.0f,                        // depthBiasConstantFactor
+        0.0f,                        // depthBiasClamp
+        0.0f,                        // depthBiasSlopeFactor
+        1.0f                         // lineWidth
+    );
+
+    vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo(
+        {},                         // flags
+        vk::SampleCountFlagBits::e1 // rasterizationSamples
+                                    // other values can be default
+    );
+
+    vk::StencilOpState stencilOpState(
+        vk::StencilOp::eKeep,
+        vk::StencilOp::eKeep,
+        vk::StencilOp::eKeep,
+        vk::CompareOp::eAlways);
+    vk::PipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo(
+        {},                          // flags
+        true,                        // depthTestEnable
+        true,                        // depthWriteEnable
+        vk::CompareOp::eLessOrEqual, // depthCompareOp
+        false,                       // depthBoundTestEnable
+        false,                       // stencilTestEnable
+        stencilOpState,              // front
+        stencilOpState               // back
+    );
+
+    vk::ColorComponentFlags colorComponentFlags(
+        vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB |
+        vk::ColorComponentFlagBits::eA);
+    vk::PipelineColorBlendAttachmentState pipelineColorBlendAttachmentState(
+        false,                  // blendEnable
+        vk::BlendFactor::eZero, // srcColorBlendFactor
+        vk::BlendFactor::eZero, // dstColorBlendFactor
+        vk::BlendOp::eAdd,      // colorBlendOp
+        vk::BlendFactor::eZero, // srcAlphaBlendFactor
+        vk::BlendFactor::eZero, // dstAlphaBlendFactor
+        vk::BlendOp::eAdd,      // alphaBlendOp
+        colorComponentFlags     // colorWriteMask
+    );
+
+    vk::PipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo(
+        {
+    },                                 // flags
+        false,                             // logicOpEnable
+        vk::LogicOp::eCopy,                // logicOp
+        pipelineColorBlendAttachmentState, // attachments
+        {{0.0f, 0.0f, 0.0f, 0.0f}}         // blendConstants
+    );
+
+    std::array<vk::DynamicState, 2>    dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+    vk::PipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo({}, dynamicStates);
+
+    vk::PipelineLayoutCreateInfo pipeLineCreateInfo;
+    vk::raii::PipelineLayout     pipelineLayout(m_Device, pipeLineCreateInfo);
+
+    vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
+        {},                                    // flags
+        pipelineShaderStageCreateInfos,        // stages
+        &pipelineVertexInputStateCreateInfo,   // pVertexInputState
+        &pipelineInputAssemblyStateCreateInfo, // pInputAssemblyState
+        nullptr,                               // pTessellationState
+        &pipelineViewportStateCreateInfo,      // pViewportState
+        &pipelineRasterizationStateCreateInfo, // pRasterizationState
+        &pipelineMultisampleStateCreateInfo,   // pMultisampleState
+        &pipelineDepthStencilStateCreateInfo,  // pDepthStencilState
+        &pipelineColorBlendStateCreateInfo,    // pColorBlendState
+        &pipelineDynamicStateCreateInfo,       // pDynamicState
+        *pipelineLayout,                       // layout
+        *m_RenderPass                          // renderPass
+    );
+
+    vk::raii::Pipeline pipeline(m_Device, nullptr, graphicsPipelineCreateInfo);
+
+    if (pipeline.getConstructorSuccessCode() != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("Falid to create Graphics Pipeline.");
+    }
+    return pipeline;
 }
 
 vk::SurfaceFormatKHR HelloTriangle::getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
@@ -284,6 +396,30 @@ vk::SurfaceFormatKHR HelloTriangle::getSwapChainFormat(const std::vector<vk::Sur
     }
 
     throw std::runtime_error("could not find valid surface format.");
+}
+
+vk::Extent2D HelloTriangle::get2DExtents(
+    vk::SurfaceCapabilitiesKHR  capabilities,
+    GLFWWindow::FrameBufferSize frameBufferSize)
+{
+
+    if (capabilities.currentExtent.width != UINT32_MAX)
+    {
+        return capabilities.currentExtent;
+    }
+    else
+    {
+        vk::Extent2D actualExtent(
+            static_cast<uint32_t>(frameBufferSize.Width),
+            static_cast<uint32_t>(frameBufferSize.Height));
+
+        actualExtent.width =
+            std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        actualExtent.height =
+            std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+        return actualExtent;
+    }
 }
 
 bool HelloTriangle::areDeviceExtensionsSupported(
@@ -312,7 +448,7 @@ bool HelloTriangle::areDeviceExtensionsSupported(
         if (extensions.empty())
         {
             break; // For()
-        }
+}
     }
 
     return extensions.empty();
