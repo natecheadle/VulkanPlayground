@@ -1,12 +1,20 @@
 #include "GLFWWindow.h"
 
+void OnGLFWResize(GLFWwindow* window, int width, int height)
+{
+    auto app = reinterpret_cast<GLFWWindow*>(glfwGetWindowUserPointer(window));
+    app->OnResize(width, height);
+}
+
 GLFWWindow::GLFWWindow()
     : m_pWindow(createWindow(DEFAULT_WIDTH, DEFAULT_HEIGHT))
     , m_Width(DEFAULT_WIDTH)
     , m_Height(DEFAULT_HEIGHT)
     , m_RequiredExtensions(createExtensionList())
     , f_RunWindow([]() { return; })
+    , f_OnResize([](int width, int height) { return; })
 {
+    glfwSetWindowUserPointer(m_pWindow, this);
 }
 
 GLFWWindow::GLFWWindow(int width, int height)
@@ -15,7 +23,9 @@ GLFWWindow::GLFWWindow(int width, int height)
     , m_Height(height)
     , m_RequiredExtensions(createExtensionList())
     , f_RunWindow([]() { return; })
+    , f_OnResize([](int width, int height) { return; })
 {
+    glfwSetWindowUserPointer(m_pWindow, this);
 }
 
 GLFWWindow::~GLFWWindow()
@@ -57,9 +67,13 @@ GLFWwindow* GLFWWindow::createWindow(int width, int height)
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    return glfwCreateWindow(width, height, "Vulkan", nullptr, nullptr);
+    GLFWwindow* pWindow = glfwCreateWindow(width, height, "Vulkan", nullptr, nullptr);
+
+    glfwSetFramebufferSizeCallback(pWindow, OnGLFWResize);
+
+    return pWindow;
 }
 
 std::vector<const char*> GLFWWindow::createExtensionList()

@@ -30,6 +30,8 @@ HelloTriangle::HelloTriangle()
     , m_CommandBuffers(createCommandBuffers())
     , m_CurrentFrame(0)
     , m_FramebufferResized(false)
+    , m_NewWidth(0)
+    , m_NewHeight(0)
 {
     vk::SemaphoreCreateInfo semaphoreInfo;
     vk::FenceCreateInfo     fenceInfo(vk::FenceCreateFlagBits::eSignaled);
@@ -42,6 +44,8 @@ HelloTriangle::HelloTriangle()
         m_RenderFinishedSemaphores.push_back(vk::raii::Semaphore(m_Device, semaphoreInfo));
         m_InFlightFences.push_back(vk::raii::Fence(m_Device, fenceInfo));
     }
+
+    m_Window.SetOnResize([this](int width, int height) { this->onWindowResize(width, height); });
 }
 
 HelloTriangle::~HelloTriangle() {}
@@ -53,6 +57,8 @@ void HelloTriangle::Run()
     {
         m_Window.Run();
     }
+
+    waitImagesInFlight();
 }
 
 vk::raii::Instance HelloTriangle::createInstance(const vk::raii::Context& context, const GLFWWindow& window)
@@ -497,12 +503,12 @@ void HelloTriangle::drawFrame()
     std::tie(result, imageIndex) =
         m_SwapChain.acquireNextImage(UINT64_MAX, *(m_ImageAvailableSemaphores[m_CurrentFrame]));
 
-    if (result == vk::Result::eErrorOutOfDateKHR)
+    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || m_FramebufferResized)
     {
+        m_FramebufferResized = false;
         recreateSwapChain();
-        return;
     }
-    else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+    else if (result != vk::Result::eSuccess)
     {
         throw std::runtime_error("failed to acquire swap chain image!");
     }
@@ -552,6 +558,13 @@ void HelloTriangle::drawFrame()
 
 void HelloTriangle::recreateSwapChain()
 {
+    auto size = m_Window.GetFrameBufferSize();
+    while (size.Width == 0 || size.Height == 0)
+    {
+        size = m_Window.GetFrameBufferSize();
+        glfwWaitEvents();
+    }
+
     m_Device.waitIdle();
 
     m_SwapChain      = createSwapChain();
@@ -565,6 +578,28 @@ void HelloTriangle::recreateSwapChain()
     {
         fence = nullptr;
     }
+}
+
+void HelloTriangle::waitImagesInFlight()
+{
+    for (size_t i = 0; i < m_ImagesInFlight.size(); ++i)
+    {
+        if (m_ImagesInFlight.at(i))
+        {
+            if (vk::Result::eSuccess != m_Device.waitForFences(*(*m_ImagesInFlight[i]), VK_TRUE, UINT64_MAX))
+            {
+                throw std::runtime_error("Failed waiting for fence to clear.");
+            }
+        }
+
+        m_ImagesInFlight.at(i) = nullptr;
+    }
+}
+void HelloTriangle::onWindowResize(int width, int height)
+{
+    m_FramebufferResized = true;
+    m_NewHeight          = height;
+    m_NewWidth           = width;
 }
 
 vk::SurfaceFormatKHR HelloTriangle::getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)

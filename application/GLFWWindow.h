@@ -28,7 +28,9 @@ class GLFWWindow {
     int m_Height;
 
     const std::vector<const char*> m_RequiredExtensions;
-    std::function<void()>          f_RunWindow;
+
+    std::function<void()>                            f_RunWindow;
+    std::function<void(int newWidth, int newHeight)> f_OnResize;
 
   public:
     GLFWWindow();
@@ -49,6 +51,9 @@ class GLFWWindow {
         glfwPollEvents();
         f_RunWindow();
     }
+
+    void SetOnResize(const std::function<void(int newWidth, int newHeight)>& f_onResize) { f_OnResize = f_onResize; }
+    void OnResize(int width, int height) { f_OnResize(width, height); }
 
   private:
     static GLFWwindow*              createWindow(int width, int height);

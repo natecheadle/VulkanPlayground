@@ -76,6 +76,8 @@ class HelloTriangle {
 
     size_t m_CurrentFrame;
     bool   m_FramebufferResized;
+    int    m_NewWidth;
+    int    m_NewHeight;
 
   public:
     HelloTriangle();
@@ -110,6 +112,9 @@ class HelloTriangle {
 
     void drawFrame();
     void recreateSwapChain();
+
+    void waitImagesInFlight();
+    void onWindowResize(int width, int height);
 
     static vk::SurfaceFormatKHR getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     static bool                 areDeviceExtensionsSupported(
