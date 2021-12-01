@@ -5,8 +5,30 @@
 const std::string HelloTriangle::AppName    = "HelloTriangle";
 const std::string HelloTriangle::EngineName = "No Engine";
 
+std::array<vk::VertexInputBindingDescription, 1> HelloTriangle::Vertex::getBindingDescription()
+{
+    std::array<vk::VertexInputBindingDescription, 1> bindingDescriptions(
+        {vk::VertexInputBindingDescription(0, sizeof(Vertex), vk::VertexInputRate::eVertex)});
+
+    return bindingDescriptions;
+}
+
+std::array<vk::VertexInputAttributeDescription, 2> HelloTriangle::Vertex::getAttributeDescriptions()
+{
+    std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions = {
+        vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, pos)),
+        vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, color))};
+
+    return attributeDescriptions;
+}
+
 HelloTriangle::HelloTriangle()
-    : m_Window(800, 600)
+    : m_Vertices({
+          {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+          {{0.5f, 0.5f},  {0.0f, 1.0f, 0.0f}},
+          {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+})
+    , m_Window(800, 600)
     , m_Instance(createInstance(m_Context, m_Window))
     , m_Surface(m_Window.CreateSurface(m_Instance))
 #ifndef NDEBUG
@@ -27,6 +49,8 @@ HelloTriangle::HelloTriangle()
     , m_Pipeline(createPipeline())
     , m_Framebuffers(createFrameBuffers())
     , m_CommandPool(createCommandPool())
+    , m_VertexBuffer(createVertexBuffer())
+    , m_VertexBufferMemory(createDeviceMemory())
     , m_CommandBuffers(createCommandBuffers())
     , m_CurrentFrame(0)
     , m_FramebufferResized(false)
@@ -306,10 +330,13 @@ vk::raii::Pipeline HelloTriangle::createPipeline()
         vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, *vertexShaderModule, "main"),
         vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, *fragShaderModule, "main")};
 
+    auto bindingDescriptions   = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
     vk::PipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo(
         {}, // flags
-        0,
-        0);
+        bindingDescriptions,
+        attributeDescriptions);
 
     vk::PipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo(
         {},
@@ -467,9 +494,13 @@ vk::raii::CommandBuffers HelloTriangle::createCommandBuffers()
             vk::Rect2D(vk::Offset2D(0, 0), m_SwapChainExtents),
             clearValues);
 
+        std::array<vk::Buffer, 1>     buffers({*m_VertexBuffer});
+        std::array<vk::DeviceSize, 1> deviceSizes({0});
+
         commandBuffer.begin({});
         commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_Pipeline);
+        commandBuffer.bindVertexBuffers(0, buffers, deviceSizes);
         commandBuffer.setViewport(
             0,
             vk::Viewport(
@@ -488,6 +519,39 @@ vk::raii::CommandBuffers HelloTriangle::createCommandBuffers()
     }
 
     return std::move(commandBuffers);
+}
+
+vk::raii::Buffer HelloTriangle::createVertexBuffer()
+{
+    vk::BufferCreateInfo bufferCreateInfo(
+        {},
+        sizeof(m_Vertices[0]) * m_Vertices.size(),
+        vk::BufferUsageFlagBits::eVertexBuffer,
+        vk::SharingMode::eExclusive);
+    return vk::raii::Buffer(m_Device, bufferCreateInfo);
+}
+
+vk::raii::DeviceMemory HelloTriangle::createDeviceMemory()
+{
+    // allocate device memory for that buffer
+    vk::MemoryRequirements memoryRequirements = m_VertexBuffer.getMemoryRequirements();
+
+    uint32_t memoryTypeIndex = findMemoryType(
+        memoryRequirements.memoryTypeBits,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+    vk::MemoryAllocateInfo memoryAllocateInfo(memoryRequirements.size, memoryTypeIndex);
+    vk::raii::DeviceMemory deviceMemory(m_Device, memoryAllocateInfo);
+
+    // copy the vertex and color data into that device memory
+    uint8_t* pData = static_cast<uint8_t*>(deviceMemory.mapMemory(0, memoryRequirements.size));
+    memcpy(pData, m_Vertices.data(), (size_t)sizeof(m_Vertices[0]) * m_Vertices.size());
+    deviceMemory.unmapMemory();
+
+    // and bind the device memory to the vertex buffer
+    m_VertexBuffer.bindMemory(*deviceMemory, 0);
+
+    return deviceMemory;
 }
 
 void HelloTriangle::drawFrame()
@@ -670,4 +734,19 @@ bool HelloTriangle::areDeviceExtensionsSupported(
     }
 
     return extensions.empty();
+}
+
+uint32_t HelloTriangle::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+{
+    vk::PhysicalDeviceMemoryProperties memProperties = m_PhysicalDevice.getMemoryProperties();
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
 }

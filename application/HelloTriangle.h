@@ -4,8 +4,10 @@
 #include "Shader.h"
 #include "VulkanDebugLog.h"
 
+#include <glm/glm.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
+#include <array>
 #include <optional>
 #include <string>
 
@@ -30,6 +32,15 @@ class HelloTriangle {
         std::vector<vk::PresentModeKHR>   presentModes;
     };
 
+    struct Vertex
+    {
+        glm::vec2 pos;
+        glm::vec3 color;
+
+        static std::array<vk::VertexInputBindingDescription, 1>   getBindingDescription();
+        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions();
+    };
+
 #ifdef NDEBUG
     static constexpr bool ENABLE_VALIDATION = false;
 #else
@@ -39,7 +50,8 @@ class HelloTriangle {
     static const std::string AppName;
     static const std::string EngineName;
 
-    bool m_EnablePortabilityExtension = false;
+    bool                m_EnablePortabilityExtension = false;
+    std::vector<Vertex> m_Vertices;
 
     GLFWWindow m_Window;
 
@@ -67,6 +79,8 @@ class HelloTriangle {
 
     std::vector<vk::raii::Framebuffer> m_Framebuffers;
     vk::raii::CommandPool              m_CommandPool;
+    vk::raii::Buffer                   m_VertexBuffer;
+    vk::raii::DeviceMemory             m_VertexBufferMemory;
     vk::raii::CommandBuffers           m_CommandBuffers;
 
     std::vector<vk::raii::Semaphore> m_ImageAvailableSemaphores;
@@ -109,16 +123,20 @@ class HelloTriangle {
     std::vector<vk::raii::Framebuffer> createFrameBuffers();
     vk::raii::CommandPool              createCommandPool();
     vk::raii::CommandBuffers           createCommandBuffers();
+    vk::raii::Buffer                   createVertexBuffer();
+    vk::raii::DeviceMemory             createDeviceMemory();
 
     void drawFrame();
     void recreateSwapChain();
 
-    void waitImagesInFlight();
-    void onWindowResize(int width, int height);
+    void         waitImagesInFlight();
+    void         onWindowResize(int width, int height);
+    vk::Extent2D get2DExtents(vk::SurfaceCapabilitiesKHR capabilities, GLFWWindow::FrameBufferSize frameBufferSize);
+    uint32_t     findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
     static vk::SurfaceFormatKHR getSwapChainFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
-    static bool                 areDeviceExtensionsSupported(
-                        std::vector<const char*>        extensions,
-                        const vk::raii::PhysicalDevice& physicalDevice);
-    vk::Extent2D get2DExtents(vk::SurfaceCapabilitiesKHR capabilities, GLFWWindow::FrameBufferSize frameBufferSize);
+
+    static bool areDeviceExtensionsSupported(
+        std::vector<const char*>        extensions,
+        const vk::raii::PhysicalDevice& physicalDevice);
 };
