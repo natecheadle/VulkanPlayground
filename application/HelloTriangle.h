@@ -12,6 +12,18 @@
 #include <string>
 
 class HelloTriangle {
+    struct BufferStruct
+    {
+        BufferStruct(vk::raii::Buffer buffer, vk::raii::DeviceMemory memory)
+            : BufferData(std::move(buffer))
+            , BufferMemory(std::move(memory))
+        {
+        }
+
+        vk::raii::Buffer       BufferData;
+        vk::raii::DeviceMemory BufferMemory;
+    };
+
     struct QueueFamilyIndices
     {
         QueueFamilyIndices()
@@ -50,8 +62,9 @@ class HelloTriangle {
     static const std::string AppName;
     static const std::string EngineName;
 
-    bool                m_EnablePortabilityExtension = false;
-    std::vector<Vertex> m_Vertices;
+    bool                  m_EnablePortabilityExtension = false;
+    std::vector<Vertex>   m_Vertices;
+    std::vector<uint16_t> m_Indeces;
 
     GLFWWindow m_Window;
 
@@ -79,8 +92,8 @@ class HelloTriangle {
 
     std::vector<vk::raii::Framebuffer> m_Framebuffers;
     vk::raii::CommandPool              m_CommandPool;
-    vk::raii::Buffer                   m_VertexBuffer;
-    vk::raii::DeviceMemory             m_VertexBufferMemory;
+    BufferStruct                       m_VertexBuffer;
+    BufferStruct                       m_IndexBuffer;
     vk::raii::CommandBuffers           m_CommandBuffers;
 
     std::vector<vk::raii::Semaphore> m_ImageAvailableSemaphores;
@@ -123,11 +136,14 @@ class HelloTriangle {
     std::vector<vk::raii::Framebuffer> createFrameBuffers();
     vk::raii::CommandPool              createCommandPool();
     vk::raii::CommandBuffers           createCommandBuffers();
-    vk::raii::Buffer                   createVertexBuffer();
-    vk::raii::DeviceMemory             createDeviceMemory();
+    vk::raii::Buffer                   createBuffer(vk::DeviceSize bufferSize, vk::BufferUsageFlags bufferFlags);
+    vk::raii::DeviceMemory createDeviceMemory(vk::MemoryPropertyFlags propertyFlags, vk::raii::Buffer& bindBuffer);
 
-    void drawFrame();
-    void recreateSwapChain();
+    BufferStruct createVertexBuffer();
+    BufferStruct createIndexBuffer();
+    void         drawFrame();
+    void         recreateSwapChain();
+    void         copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size);
 
     void         waitImagesInFlight();
     void         onWindowResize(int width, int height);

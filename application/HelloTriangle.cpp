@@ -24,10 +24,12 @@ std::array<vk::VertexInputAttributeDescription, 2> HelloTriangle::Vertex::getAtt
 
 HelloTriangle::HelloTriangle()
     : m_Vertices({
-          {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-          {{0.5f, 0.5f},  {0.0f, 1.0f, 0.0f}},
-          {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+          {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+          {{0.5f, -0.5f},  {0.0f, 1.0f, 0.0f}},
+          {{0.5f, 0.5f},   {0.0f, 0.0f, 1.0f}},
+          {{-0.5f, 0.5f},  {1.0f, 1.0f, 1.0f}}
 })
+    , m_Indeces({0, 1, 2, 2, 3, 0})
     , m_Window(800, 600)
     , m_Instance(createInstance(m_Context, m_Window))
     , m_Surface(m_Window.CreateSurface(m_Instance))
@@ -50,7 +52,7 @@ HelloTriangle::HelloTriangle()
     , m_Framebuffers(createFrameBuffers())
     , m_CommandPool(createCommandPool())
     , m_VertexBuffer(createVertexBuffer())
-    , m_VertexBufferMemory(createDeviceMemory())
+    , m_IndexBuffer(createIndexBuffer())
     , m_CommandBuffers(createCommandBuffers())
     , m_CurrentFrame(0)
     , m_FramebufferResized(false)
@@ -472,7 +474,6 @@ vk::raii::CommandPool HelloTriangle::createCommandPool()
 
 vk::raii::CommandBuffers HelloTriangle::createCommandBuffers()
 {
-
     // allocate a CommandBuffer from the CommandPool
     vk::CommandBufferAllocateInfo commandBufferAllocateInfo(
         *m_CommandPool,
@@ -494,13 +495,14 @@ vk::raii::CommandBuffers HelloTriangle::createCommandBuffers()
             vk::Rect2D(vk::Offset2D(0, 0), m_SwapChainExtents),
             clearValues);
 
-        std::array<vk::Buffer, 1>     buffers({*m_VertexBuffer});
+        std::array<vk::Buffer, 1>     vetexBuffers({*m_VertexBuffer.BufferData});
         std::array<vk::DeviceSize, 1> deviceSizes({0});
 
         commandBuffer.begin({});
         commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_Pipeline);
-        commandBuffer.bindVertexBuffers(0, buffers, deviceSizes);
+        commandBuffer.bindVertexBuffers(0, vetexBuffers, deviceSizes);
+        commandBuffer.bindIndexBuffer(*m_IndexBuffer.BufferData, 0, vk::IndexType::eUint16);
         commandBuffer.setViewport(
             0,
             vk::Viewport(
@@ -511,7 +513,7 @@ vk::raii::CommandBuffers HelloTriangle::createCommandBuffers()
                 0.0f,
                 1.0f));
         commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), m_SwapChainExtents));
-        commandBuffer.draw(3, 1, 0, 0);
+        commandBuffer.drawIndexed(static_cast<uint32_t>(m_Indeces.size()), 1, 0, 0, 0);
         commandBuffer.endRenderPass();
         commandBuffer.end();
 
@@ -521,37 +523,95 @@ vk::raii::CommandBuffers HelloTriangle::createCommandBuffers()
     return std::move(commandBuffers);
 }
 
-vk::raii::Buffer HelloTriangle::createVertexBuffer()
+vk::raii::Buffer HelloTriangle::createBuffer(vk::DeviceSize bufferSize, vk::BufferUsageFlags bufferFlags)
 {
-    vk::BufferCreateInfo bufferCreateInfo(
-        {},
-        sizeof(m_Vertices[0]) * m_Vertices.size(),
-        vk::BufferUsageFlagBits::eVertexBuffer,
-        vk::SharingMode::eExclusive);
+    vk::BufferCreateInfo bufferCreateInfo({}, bufferSize, bufferFlags, vk::SharingMode::eExclusive);
     return vk::raii::Buffer(m_Device, bufferCreateInfo);
 }
 
-vk::raii::DeviceMemory HelloTriangle::createDeviceMemory()
+HelloTriangle::BufferStruct HelloTriangle::createVertexBuffer()
+{
+    size_t memorySize = sizeof(m_Vertices[0]) * m_Vertices.size();
+
+    auto buffer =
+        createBuffer(memorySize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst);
+    auto memory =
+        createDeviceMemory(vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible, buffer);
+    BufferStruct vertexBuffer(std::move(buffer), std::move(memory));
+
+    vk::raii::Buffer       stagingBuffer       = createBuffer(memorySize, vk::BufferUsageFlagBits::eTransferSrc);
+    vk::raii::DeviceMemory stagingBufferMemory = createDeviceMemory(
+        vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible,
+        stagingBuffer);
+
+    uint8_t* pData = static_cast<uint8_t*>(stagingBufferMemory.mapMemory(0, memorySize));
+    memcpy(pData, m_Vertices.data(), memorySize);
+    stagingBufferMemory.unmapMemory();
+
+    copyBuffer(stagingBuffer, vertexBuffer.BufferData, memorySize);
+
+    return vertexBuffer;
+}
+
+HelloTriangle::BufferStruct HelloTriangle::createIndexBuffer()
+{
+    size_t memorySize = sizeof(m_Indeces[0]) * m_Indeces.size();
+    auto   buffer =
+        createBuffer(memorySize, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst);
+    auto memory =
+        createDeviceMemory(vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible, buffer);
+
+    BufferStruct indexBuffer(std::move(buffer), std::move(memory));
+
+    vk::raii::Buffer       stagingBuffer       = createBuffer(memorySize, vk::BufferUsageFlagBits::eTransferSrc);
+    vk::raii::DeviceMemory stagingBufferMemory = createDeviceMemory(
+        vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible,
+        stagingBuffer);
+
+    uint8_t* pData = static_cast<uint8_t*>(stagingBufferMemory.mapMemory(0, memorySize));
+    memcpy(pData, m_Indeces.data(), memorySize);
+    stagingBufferMemory.unmapMemory();
+
+    copyBuffer(stagingBuffer, indexBuffer.BufferData, memorySize);
+
+    return indexBuffer;
+}
+
+vk::raii::DeviceMemory HelloTriangle::createDeviceMemory(
+    vk::MemoryPropertyFlags propertyFlags,
+    vk::raii::Buffer&       bindBuffer)
 {
     // allocate device memory for that buffer
-    vk::MemoryRequirements memoryRequirements = m_VertexBuffer.getMemoryRequirements();
+    vk::MemoryRequirements memoryRequirements = bindBuffer.getMemoryRequirements();
 
-    uint32_t memoryTypeIndex = findMemoryType(
-        memoryRequirements.memoryTypeBits,
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    uint32_t memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, propertyFlags);
 
     vk::MemoryAllocateInfo memoryAllocateInfo(memoryRequirements.size, memoryTypeIndex);
     vk::raii::DeviceMemory deviceMemory(m_Device, memoryAllocateInfo);
-
-    // copy the vertex and color data into that device memory
-    uint8_t* pData = static_cast<uint8_t*>(deviceMemory.mapMemory(0, memoryRequirements.size));
-    memcpy(pData, m_Vertices.data(), (size_t)sizeof(m_Vertices[0]) * m_Vertices.size());
-    deviceMemory.unmapMemory();
-
     // and bind the device memory to the vertex buffer
-    m_VertexBuffer.bindMemory(*deviceMemory, 0);
+    bindBuffer.bindMemory(*deviceMemory, 0);
 
     return deviceMemory;
+}
+
+void HelloTriangle::copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size)
+{
+    vk::CommandBufferAllocateInfo allocInfo(*m_CommandPool, vk::CommandBufferLevel::ePrimary, 1);
+    vk::raii::CommandBuffer       commandBuffer = std::move(vk::raii::CommandBuffers(m_Device, allocInfo).front());
+
+    vk::CommandBufferBeginInfo beginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+
+    commandBuffer.begin(beginInfo);
+    std::array<vk::BufferCopy, 1> copyRegion = {vk::BufferCopy(0, 0, size)};
+    commandBuffer.copyBuffer(*srcBuffer, *dstBuffer, copyRegion);
+    commandBuffer.end();
+
+    auto commandBuffers = std::array<vk::CommandBuffer, 1>({*commandBuffer});
+
+    vk::SubmitInfo submitInfo({}, {}, commandBuffers);
+
+    m_GraphicsQueue.submit(std::array<vk::SubmitInfo, 1>({submitInfo}));
+    m_GraphicsQueue.waitIdle();
 }
 
 void HelloTriangle::drawFrame()
