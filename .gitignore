@@ -10,3 +10,4 @@ bin
 .vs
 .idea
 CMakeSettings.json
+*.bin

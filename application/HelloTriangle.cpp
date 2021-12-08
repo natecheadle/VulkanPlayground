@@ -1,5 +1,9 @@
 #include "HelloTriangle.h"
 
+#define GLM_FORCE_RADIANS
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
 #include <iostream>
 
 const std::string HelloTriangle::AppName    = "HelloTriangle";
@@ -47,12 +51,16 @@ HelloTriangle::HelloTriangle()
     , m_SwapChain(createSwapChain())
     , m_ImageViews(createImageViews())
     , m_RenderPass(createRenderPass())
+    , m_DescriptorLayout(createDescriptorSetLayout())
     , m_PipelineLayout(createPipelineLayout())
     , m_Pipeline(createPipeline())
     , m_Framebuffers(createFrameBuffers())
     , m_CommandPool(createCommandPool())
     , m_VertexBuffer(createVertexBuffer())
     , m_IndexBuffer(createIndexBuffer())
+    , m_UniformBuffers(createUniformBuffers())
+    , m_DescriptorPool(createDescriptorPool())
+    , m_DescriptorSets(createDescriptorSets())
     , m_CommandBuffers(createCommandBuffers())
     , m_CurrentFrame(0)
     , m_FramebufferResized(false)
@@ -271,11 +279,16 @@ std::vector<vk::raii::ImageView> HelloTriangle::createImageViews()
 {
     std::vector<vk::raii::ImageView> imageViews;
 
+    auto images = m_SwapChain.getImages();
+    for (auto& image : images)
+    {
+        m_SwapChainImages.push_back(std::move(static_cast<vk::Image>(image)));
+    }
+
     SwapChainSupportDetails swapChainSupport = getSwapChainSupportDetails();
-    std::vector<VkImage>    swapChainImages  = m_SwapChain.getImages();
     vk::SurfaceFormatKHR    surfaceFormat    = getSwapChainFormat(swapChainSupport.formats);
 
-    imageViews.reserve(swapChainImages.size());
+    imageViews.reserve(m_SwapChainImages.size());
     vk::ImageViewCreateInfo imageViewCreateInfo(
         {},
         {},
@@ -284,9 +297,9 @@ std::vector<vk::raii::ImageView> HelloTriangle::createImageViews()
         {},
         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
 
-    for (auto image : swapChainImages)
+    for (auto& image : m_SwapChainImages)
     {
-        imageViewCreateInfo.image = static_cast<vk::Image>(image);
+        imageViewCreateInfo.image = image;
         imageViews.push_back({m_Device, imageViewCreateInfo});
     }
 
@@ -316,8 +329,19 @@ vk::raii::RenderPass HelloTriangle::createRenderPass()
 
 vk::raii::PipelineLayout HelloTriangle::createPipelineLayout()
 {
-    vk::PipelineLayoutCreateInfo pipeLineCreateInfo;
+    std::array<vk::DescriptorSetLayout, 1> descriptorSets({*m_DescriptorLayout});
+
+    vk::PipelineLayoutCreateInfo pipeLineCreateInfo({}, descriptorSets);
     return vk::raii::PipelineLayout(m_Device, pipeLineCreateInfo);
+}
+
+vk::raii::DescriptorSetLayout HelloTriangle::createDescriptorSetLayout()
+{
+    vk::DescriptorSetLayoutBinding
+        layoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr);
+    std::array<vk::DescriptorSetLayoutBinding, 1> bindings = {std::move(layoutBinding)};
+    vk::DescriptorSetLayoutCreateInfo             createInfo({}, bindings);
+    return vk::raii::DescriptorSetLayout(m_Device, createInfo, nullptr);
 }
 
 vk::raii::Pipeline HelloTriangle::createPipeline()
@@ -353,17 +377,17 @@ vk::raii::Pipeline HelloTriangle::createPipeline()
     vk::PipelineViewportStateCreateInfo pipelineViewportStateCreateInfo({}, viewport, scissor);
 
     vk::PipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo(
-        {},                          // flags
-        false,                       // depthClampEnable
-        false,                       // rasterizerDiscardEnable
-        vk::PolygonMode::eFill,      // polygonMode
-        vk::CullModeFlagBits::eBack, // cullMode
-        vk::FrontFace::eClockwise,   // frontFace
-        false,                       // depthBiasEnable
-        0.0f,                        // depthBiasConstantFactor
-        0.0f,                        // depthBiasClamp
-        0.0f,                        // depthBiasSlopeFactor
-        1.0f                         // lineWidth
+        {},                               // flags
+        false,                            // depthClampEnable
+        false,                            // rasterizerDiscardEnable
+        vk::PolygonMode::eFill,           // polygonMode
+        vk::CullModeFlagBits::eBack,      // cullMode
+        vk::FrontFace::eCounterClockwise, // frontFace
+        false,                            // depthBiasEnable
+        0.0f,                             // depthBiasConstantFactor
+        0.0f,                             // depthBiasClamp
+        0.0f,                             // depthBiasSlopeFactor
+        1.0f                              // lineWidth
     );
 
     vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo(
@@ -495,14 +519,12 @@ vk::raii::CommandBuffers HelloTriangle::createCommandBuffers()
             vk::Rect2D(vk::Offset2D(0, 0), m_SwapChainExtents),
             clearValues);
 
-        std::array<vk::Buffer, 1>     vetexBuffers({*m_VertexBuffer.BufferData});
-        std::array<vk::DeviceSize, 1> deviceSizes({0});
-
+        std::array<vk::Buffer, 1>        vetexBuffers({*m_VertexBuffer.BufferData});
+        std::array<vk::DeviceSize, 1>    deviceSizes({0});
+        std::array<vk::DescriptorSet, 1> descriptorSets({*m_DescriptorSets[i]});
         commandBuffer.begin({});
         commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_Pipeline);
-        commandBuffer.bindVertexBuffers(0, vetexBuffers, deviceSizes);
-        commandBuffer.bindIndexBuffer(*m_IndexBuffer.BufferData, 0, vk::IndexType::eUint16);
         commandBuffer.setViewport(
             0,
             vk::Viewport(
@@ -513,6 +535,14 @@ vk::raii::CommandBuffers HelloTriangle::createCommandBuffers()
                 0.0f,
                 1.0f));
         commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), m_SwapChainExtents));
+        commandBuffer.bindVertexBuffers(0, vetexBuffers, deviceSizes);
+        commandBuffer.bindIndexBuffer(*m_IndexBuffer.BufferData, 0, vk::IndexType::eUint16);
+        commandBuffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            *m_PipelineLayout,
+            0,
+            descriptorSets,
+            std::array<uint32_t, 0>());
         commandBuffer.drawIndexed(static_cast<uint32_t>(m_Indeces.size()), 1, 0, 0, 0);
         commandBuffer.endRenderPass();
         commandBuffer.end();
@@ -577,6 +607,41 @@ HelloTriangle::BufferStruct HelloTriangle::createIndexBuffer()
     return indexBuffer;
 }
 
+std::vector<HelloTriangle::BufferStruct> HelloTriangle::createUniformBuffers()
+{
+    vk::DeviceSize memorySize = sizeof(UniformBufferObject);
+
+    std::vector<BufferStruct> buffers;
+    int                       swapchainImageSize = static_cast<int>(m_SwapChainImages.size());
+
+    for (int i = 0; i < swapchainImageSize; ++i)
+    {
+        auto buffer = createBuffer(memorySize, vk::BufferUsageFlagBits::eUniformBuffer);
+        auto memory = createDeviceMemory(
+            vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible,
+            buffer);
+
+        buffers.push_back(BufferStruct(std::move(buffer), std::move(memory)));
+    }
+    return buffers;
+}
+
+vk::raii::DescriptorPool HelloTriangle::createDescriptorPool()
+{
+    vk::DescriptorPoolSize poolSize(
+        vk::DescriptorType::eUniformBuffer,
+        static_cast<uint32_t>(m_SwapChainImages.size()));
+
+    std::array<vk::DescriptorPoolSize, 1> poolSizes({std::move(poolSize)});
+
+    vk::DescriptorPoolCreateInfo createInfo(
+        vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+        static_cast<uint32_t>(m_SwapChainImages.size()),
+        poolSizes);
+
+    return vk::raii::DescriptorPool(m_Device, createInfo, nullptr);
+}
+
 vk::raii::DeviceMemory HelloTriangle::createDeviceMemory(
     vk::MemoryPropertyFlags propertyFlags,
     vk::raii::Buffer&       bindBuffer)
@@ -592,6 +657,39 @@ vk::raii::DeviceMemory HelloTriangle::createDeviceMemory(
     bindBuffer.bindMemory(*deviceMemory, 0);
 
     return deviceMemory;
+}
+
+vk::raii::DescriptorSets HelloTriangle::createDescriptorSets()
+{
+    std::vector<vk::DescriptorSetLayout> layouts;
+    for (size_t i = 0; i < m_SwapChainImages.size(); ++i)
+    {
+        layouts.push_back(*m_DescriptorLayout);
+    }
+    vk::DescriptorSetAllocateInfo allocInfo(*m_DescriptorPool, m_SwapChainImages.size(), layouts.data());
+
+    vk::raii::DescriptorSets descriptorSets(m_Device, allocInfo);
+
+    for (size_t i = 0; i < m_SwapChainImages.size(); i++)
+    {
+        vk::DescriptorBufferInfo bufferInfo(*(m_UniformBuffers[i].BufferData), 0, sizeof(UniformBufferObject));
+
+        std::array<vk::WriteDescriptorSet, 1> descriptorWrites;
+        descriptorWrites.at(0) = vk::WriteDescriptorSet(
+            *descriptorSets[i],
+            0,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &bufferInfo,
+            nullptr);
+
+        std::array<vk::CopyDescriptorSet, 0> copyDescriptorSets;
+        m_Device.updateDescriptorSets(descriptorWrites, copyDescriptorSets);
+    }
+
+    return std::move(descriptorSets);
 }
 
 void HelloTriangle::copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size)
@@ -653,6 +751,8 @@ void HelloTriangle::drawFrame()
 
     vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 
+    updateUniformBuffer(imageIndex);
+
     vk::SubmitInfo submitInfo(
         *(m_ImageAvailableSemaphores[m_CurrentFrame]),
         waitDestinationStageMask,
@@ -679,6 +779,25 @@ void HelloTriangle::drawFrame()
 
     m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
+void HelloTriangle::updateUniformBuffer(uint32_t currentImage)
+{
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto  currentTime = std::chrono::high_resolution_clock::now();
+    float time        = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+    UniformBufferObject ubo{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view  = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj =
+        glm::perspective(glm::radians(45.0f), m_SwapChainExtents.width / (float)m_SwapChainExtents.height, 0.1f, 10.0f);
+
+    ubo.proj[1][1] *= -1;
+
+    uint8_t* pData = static_cast<uint8_t*>(m_UniformBuffers[currentImage].BufferMemory.mapMemory(0, sizeof(ubo)));
+    memcpy(pData, &ubo, sizeof(ubo));
+    m_UniformBuffers[currentImage].BufferMemory.unmapMemory();
+}
 
 void HelloTriangle::recreateSwapChain()
 {
@@ -696,6 +815,9 @@ void HelloTriangle::recreateSwapChain()
     m_RenderPass     = createRenderPass();
     m_Pipeline       = createPipeline();
     m_Framebuffers   = createFrameBuffers();
+    m_UniformBuffers = createUniformBuffers();
+    m_DescriptorPool = createDescriptorPool();
+    m_DescriptorSets = createDescriptorSets();
     m_CommandBuffers = createCommandBuffers();
 
     for (auto& fence : m_ImagesInFlight)

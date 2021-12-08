@@ -23,6 +23,12 @@ class HelloTriangle {
         vk::raii::Buffer       BufferData;
         vk::raii::DeviceMemory BufferMemory;
     };
+    struct UniformBufferObject
+    {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 proj;
+    };
 
     struct QueueFamilyIndices
     {
@@ -81,19 +87,24 @@ class HelloTriangle {
     vk::raii::Queue          m_GraphicsQueue;
     vk::raii::Queue          m_PresentQueue;
 
+    std::vector<vk::Image>           m_SwapChainImages;
     vk::SurfaceFormatKHR             m_SwapChainImageFormat;
     vk::Extent2D                     m_SwapChainExtents;
     vk::raii::SwapchainKHR           m_SwapChain;
     std::vector<vk::raii::ImageView> m_ImageViews;
 
-    vk::raii::RenderPass     m_RenderPass;
-    vk::raii::PipelineLayout m_PipelineLayout;
-    vk::raii::Pipeline       m_Pipeline;
+    vk::raii::RenderPass          m_RenderPass;
+    vk::raii::DescriptorSetLayout m_DescriptorLayout;
+    vk::raii::PipelineLayout      m_PipelineLayout;
+    vk::raii::Pipeline            m_Pipeline;
 
     std::vector<vk::raii::Framebuffer> m_Framebuffers;
     vk::raii::CommandPool              m_CommandPool;
     BufferStruct                       m_VertexBuffer;
     BufferStruct                       m_IndexBuffer;
+    std::vector<BufferStruct>          m_UniformBuffers;
+    vk::raii::DescriptorPool           m_DescriptorPool;
+    vk::raii::DescriptorSets           m_DescriptorSets;
     vk::raii::CommandBuffers           m_CommandBuffers;
 
     std::vector<vk::raii::Semaphore> m_ImageAvailableSemaphores;
@@ -131,19 +142,25 @@ class HelloTriangle {
     vk::raii::SwapchainKHR             createSwapChain();
     std::vector<vk::raii::ImageView>   createImageViews();
     vk::raii::RenderPass               createRenderPass();
+    vk::raii::DescriptorSetLayout      createDescriptorSetLayout();
     vk::raii::PipelineLayout           createPipelineLayout();
     vk::raii::Pipeline                 createPipeline();
     std::vector<vk::raii::Framebuffer> createFrameBuffers();
     vk::raii::CommandPool              createCommandPool();
+    vk::raii::DescriptorPool           createDescriptorPool();
+    vk::raii::DescriptorSets           createDescriptorSets();
     vk::raii::CommandBuffers           createCommandBuffers();
     vk::raii::Buffer                   createBuffer(vk::DeviceSize bufferSize, vk::BufferUsageFlags bufferFlags);
     vk::raii::DeviceMemory createDeviceMemory(vk::MemoryPropertyFlags propertyFlags, vk::raii::Buffer& bindBuffer);
 
-    BufferStruct createVertexBuffer();
-    BufferStruct createIndexBuffer();
-    void         drawFrame();
-    void         recreateSwapChain();
-    void         copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size);
+    BufferStruct              createVertexBuffer();
+    BufferStruct              createIndexBuffer();
+    std::vector<BufferStruct> createUniformBuffers();
+
+    void drawFrame();
+    void recreateSwapChain();
+    void updateUniformBuffer(uint32_t currentImage);
+    void copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size);
 
     void         waitImagesInFlight();
     void         onWindowResize(int width, int height);
