@@ -280,6 +280,7 @@ std::vector<vk::raii::ImageView> HelloTriangle::createImageViews()
     std::vector<vk::raii::ImageView> imageViews;
 
     auto images = m_SwapChain.getImages();
+    m_SwapChainImages.clear();
     for (auto& image : images)
     {
         m_SwapChainImages.push_back(std::move(static_cast<vk::Image>(image)));
@@ -816,6 +817,8 @@ void HelloTriangle::recreateSwapChain()
     m_Pipeline       = createPipeline();
     m_Framebuffers   = createFrameBuffers();
     m_UniformBuffers = createUniformBuffers();
+
+    m_DescriptorSets.clear();
     m_DescriptorPool = createDescriptorPool();
     m_DescriptorSets = createDescriptorSets();
     m_CommandBuffers = createCommandBuffers();
