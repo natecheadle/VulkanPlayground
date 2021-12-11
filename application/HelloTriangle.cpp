@@ -48,7 +48,7 @@ HelloTriangle::HelloTriangle()
     , m_Device(createDevice())
     , m_GraphicsQueue(m_Device, getQueueFamilyIndeces(m_PhysicalDevice).graphicsFamily.value(), 0)
     , m_PresentQueue(m_Device, getQueueFamilyIndeces(m_PhysicalDevice).presentFamily.value(), 0)
-    , m_SwapChain(createSwapChain())
+    , m_SwapChain(createSwapChain(VK_NULL_HANDLE))
     , m_ImageViews(createImageViews())
     , m_RenderPass(createRenderPass())
     , m_DescriptorLayout(createDescriptorSetLayout())
@@ -228,7 +228,7 @@ HelloTriangle::SwapChainSupportDetails HelloTriangle::getSwapChainSupportDetails
     return swapChainDetails;
 }
 
-vk::raii::SwapchainKHR HelloTriangle::createSwapChain()
+vk::raii::SwapchainKHR HelloTriangle::createSwapChain(vk::SwapchainKHR oldSwapchain)
 {
     auto getPresentMode = [](const std::vector<vk::PresentModeKHR>& availablePresentModes) {
         for (const auto& availablePresentMode : availablePresentModes)
@@ -270,7 +270,7 @@ vk::raii::SwapchainKHR HelloTriangle::createSwapChain()
         vk::CompositeAlphaFlagBitsKHR::eOpaque,
         presentMode,
         VK_TRUE,
-        VK_NULL_HANDLE);
+        oldSwapchain);
 
     return vk::raii::SwapchainKHR(m_Device, createInfo);
 }
@@ -726,16 +726,6 @@ void HelloTriangle::drawFrame()
     std::tie(result, imageIndex) =
         m_SwapChain.acquireNextImage(UINT64_MAX, *(m_ImageAvailableSemaphores[m_CurrentFrame]));
 
-    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || m_FramebufferResized)
-    {
-        m_FramebufferResized = false;
-        recreateSwapChain();
-    }
-    else if (result != vk::Result::eSuccess)
-    {
-        throw std::runtime_error("failed to acquire swap chain image!");
-    }
-
     if (imageIndex >= m_ImageViews.size())
     {
         throw std::runtime_error("Failed to get next image.");
@@ -811,7 +801,7 @@ void HelloTriangle::recreateSwapChain()
 
     m_Device.waitIdle();
 
-    m_SwapChain      = createSwapChain();
+    m_SwapChain      = createSwapChain(*m_SwapChain);
     m_ImageViews     = createImageViews();
     m_RenderPass     = createRenderPass();
     m_Pipeline       = createPipeline();

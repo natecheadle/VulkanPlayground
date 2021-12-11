@@ -139,7 +139,7 @@ class HelloTriangle {
     vk::raii::PhysicalDevice           getPhysicalDevice(const vk::raii::Instance& instance);
     vk::raii::Device                   createDevice();
     SwapChainSupportDetails            getSwapChainSupportDetails();
-    vk::raii::SwapchainKHR             createSwapChain();
+    vk::raii::SwapchainKHR             createSwapChain(vk::SwapchainKHR oldSwapChain);
     std::vector<vk::raii::ImageView>   createImageViews();
     vk::raii::RenderPass               createRenderPass();
     vk::raii::DescriptorSetLayout      createDescriptorSetLayout();
