@@ -23,6 +23,19 @@ class HelloTriangle {
         vk::raii::Buffer       BufferData;
         vk::raii::DeviceMemory BufferMemory;
     };
+
+    struct ImageStruct
+    {
+        ImageStruct(vk::raii::Image image, vk::raii::DeviceMemory memory)
+            : ImageData(std::move(image))
+            , ImageMemory(std::move(memory))
+        {
+        }
+
+        vk::raii::Image        ImageData;
+        vk::raii::DeviceMemory ImageMemory;
+    };
+
     struct UniformBufferObject
     {
         glm::mat4 model;
@@ -54,9 +67,10 @@ class HelloTriangle {
     {
         glm::vec2 pos;
         glm::vec3 color;
+        glm::vec2 texCoord;
 
         static std::array<vk::VertexInputBindingDescription, 1>   getBindingDescription();
-        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions();
+        static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions();
     };
 
 #ifdef NDEBUG
@@ -100,6 +114,9 @@ class HelloTriangle {
 
     std::vector<vk::raii::Framebuffer> m_Framebuffers;
     vk::raii::CommandPool              m_CommandPool;
+    ImageStruct                        m_TextureImage;
+    vk::raii::ImageView                m_TextureImageView;
+    vk::raii::Sampler                  m_TextureSampler;
     BufferStruct                       m_VertexBuffer;
     BufferStruct                       m_IndexBuffer;
     std::vector<BufferStruct>          m_UniformBuffers;
@@ -138,7 +155,7 @@ class HelloTriangle {
     QueueFamilyIndices                 getQueueFamilyIndeces(const vk::raii::PhysicalDevice& physicalDevice);
     vk::raii::PhysicalDevice           getPhysicalDevice(const vk::raii::Instance& instance);
     vk::raii::Device                   createDevice();
-    SwapChainSupportDetails            getSwapChainSupportDetails();
+    SwapChainSupportDetails            getSwapChainSupportDetails(vk::raii::PhysicalDevice& physicalDevice);
     vk::raii::SwapchainKHR             createSwapChain(vk::SwapchainKHR oldSwapChain);
     std::vector<vk::raii::ImageView>   createImageViews();
     vk::raii::RenderPass               createRenderPass();
@@ -150,11 +167,30 @@ class HelloTriangle {
     vk::raii::DescriptorPool           createDescriptorPool();
     vk::raii::DescriptorSets           createDescriptorSets();
     vk::raii::CommandBuffers           createCommandBuffers();
+    vk::raii::Sampler                  createTextureSampler();
+    vk::raii::ImageView                createImageView(vk::Image image, vk::Format format);
     vk::raii::Buffer                   createBuffer(vk::DeviceSize bufferSize, vk::BufferUsageFlags bufferFlags);
     vk::raii::DeviceMemory createDeviceMemory(vk::MemoryPropertyFlags propertyFlags, vk::raii::Buffer& bindBuffer);
 
-    BufferStruct              createVertexBuffer();
-    BufferStruct              createIndexBuffer();
+    vk::raii::CommandBuffer beginSingleTimeCommands();
+    void                    endSingleTimeCommands(vk::raii::CommandBuffer& buffer);
+    void copyBufferToImage(vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height);
+    void transitionImageLayout(
+        vk::raii::Image& image,
+        vk::Format       format,
+        vk::ImageLayout  oldLayout,
+        vk::ImageLayout  newLayout);
+
+    BufferStruct createVertexBuffer();
+    BufferStruct createIndexBuffer();
+    ImageStruct  createTexture();
+    ImageStruct  createImage(
+         uint32_t                width,
+         uint32_t                height,
+         vk::Format              format,
+         vk::ImageTiling         tiling,
+         vk::ImageUsageFlags     usage,
+         vk::MemoryPropertyFlags properties);
     std::vector<BufferStruct> createUniformBuffers();
 
     void drawFrame();
